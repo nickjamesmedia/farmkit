@@ -7,7 +7,6 @@ import { supabase } from '../lib/supabaseClient';
 type Props = { session: Session };
 
 function AdminTools({ session }: Props) {
-  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState<
     { id: string; created_by_id: string | null; title: string; logged_at: string; user_name: string | null }[]
@@ -16,26 +15,7 @@ function AdminTools({ session }: Props) {
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      setRole(data?.role ?? null);
-      setLoading(false);
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
-
-  useEffect(() => {
-    let active = true;
     const loadActivity = async () => {
-      if (role !== 'admin') return;
       const { data, error } = await supabase
         .from('maintenance_logs')
         .select('id, created_by_id, title, logged_at, user:created_by_id(name)')
@@ -47,14 +27,13 @@ function AdminTools({ session }: Props) {
       } else {
         setActivity((data as any[]) ?? []);
       }
+      setLoading(false);
     };
     loadActivity();
     return () => {
       active = false;
     };
-  }, [role]);
-
-  const isAdmin = role === 'admin';
+  }, []);
 
   return (
     <>
@@ -63,8 +42,7 @@ function AdminTools({ session }: Props) {
         <div className="card stack">
           <h1>Admin Tools</h1>
           {loading && <p>Loading...</p>}
-          {!loading && !isAdmin && <p className="status">You do not have permission to view this page.</p>}
-          {!loading && isAdmin && (
+          {!loading && (
             <div className="stack">
               <p>Quick links for administrators:</p>
               <div

@@ -58,7 +58,6 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(
     null,
@@ -109,19 +108,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
       setLoading(false);
     };
 
-    const fetchProfile = async () => {
-      const { data, error: profileError } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!profileError) {
-        setIsAdmin(data?.role === 'admin');
-      }
-    };
-
     fetchEquipment();
-    fetchProfile();
   }, [session.user.id]);
 
   const resetForm = () => {
@@ -218,11 +205,9 @@ function EquipmentPage({ session }: EquipmentPageProps) {
         <div className="card stack">
           <div className="stack" style={{ alignItems: 'flex-start' }}>
             <h1>Equipment</h1>
-            {isAdmin && (
-              <button type="button" onClick={() => setShowForm(true)}>
-                Add equipment
-              </button>
-            )}
+            <button type="button" onClick={() => setShowForm(true)}>
+              Add equipment
+            </button>
           </div>
 
           {loading && <p>Loading...</p>}
@@ -492,8 +477,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {isAdmin && (
-            <>
+          <>
                     <button
                       type="button"
                       onClick={() => {
@@ -524,10 +508,9 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                       Edit logs
                     </button>
                   </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
+          <button
+            type="button"
+            onClick={() => {
                     if (!selectedEquipment) return;
                     const slug = toSlug(selectedEquipment.nickname || selectedEquipment.id);
                     navigate(`/equipment/${slug}`);

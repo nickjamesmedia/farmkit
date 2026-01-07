@@ -26,7 +26,6 @@ type UserForm = Partial<User> & {
 };
 
 function ManageUsers({ session }: Props) {
-  const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [, setSelectedUser] = useState<User | null>(null);
   const [form, setForm] = useState<UserForm>({
@@ -67,18 +66,6 @@ function ManageUsers({ session }: Props) {
   const loadData = async () => {
     setLoading(true);
     setError(null);
-    const { data: profile, error: profileErr } = await supabase
-      .from('app_users')
-      .select('id, role')
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle();
-    if (profileErr) {
-      setError(profileErr.message);
-      setLoading(false);
-      return;
-    }
-    setIsAdmin(profile?.role === 'admin');
-
     const { data, error: usersErr } = await supabase
       .from('app_users')
       .select(
@@ -102,7 +89,6 @@ function ManageUsers({ session }: Props) {
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!isAdmin) return;
     setSaving(true);
     setError(null);
     setStatus('');
@@ -140,7 +126,6 @@ function ManageUsers({ session }: Props) {
   };
 
   const handleInvite = async (user: User) => {
-    if (!isAdmin) return;
     const endpoint =
       import.meta.env.VITE_INVITE_ENDPOINT || '/api/send-invite';
     setInviting(true);
@@ -173,7 +158,6 @@ function ManageUsers({ session }: Props) {
   };
 
   const handleDelete = async (user: User) => {
-    if (!isAdmin) return;
     const confirmed = window.confirm(
       `Remove user ${displayName(user)}? Their linked records will stay but user access is removed.`,
     );
@@ -205,20 +189,6 @@ function ManageUsers({ session }: Props) {
     setStatus('');
     setError(null);
   };
-
-  if (!isAdmin && !loading) {
-    return (
-      <>
-        <Nav session={session} email={session.user.email} pageTitle="Manage Users" />
-        <div className="app">
-          <div className="card stack">
-            <h1>Manage Users</h1>
-            <p>You do not have permission to access this page.</p>
-          </div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>

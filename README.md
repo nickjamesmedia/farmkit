@@ -25,7 +25,7 @@ Farm Kit is a simple web app that helps farms track equipment, log maintenance, 
 
 ## Documentation
 Project docs live in `farmkit\docs` (relative to the repo root):
-- `farmkit\docs\AI`: AI agent docs (context, memory, etc)
+- `farmkit\.agent`: AI agent docs (context, memory, etc)
 - `farmkit\docs\dev`: developer docs
 - `farmkit\docs\User`: user instructions
 
@@ -70,7 +70,7 @@ To wire the frontend “Send login email” button (Manage Users page):
 ---
 
 ## License
-MIT License.  
+AGPL-3.0 License.  
 You can use, modify, self-host, or build on Farm Kit freely.
 
 ---

@@ -15,35 +15,13 @@ type Activity = {
 };
 
 function AdminActivity({ session }: Props) {
-  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState<Activity[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    const loadRole = async () => {
-      const { data } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      setRole(data?.role ?? null);
-    };
-    loadRole();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
-
-  useEffect(() => {
-    let active = true;
     const loadActivity = async () => {
-      if (role !== 'admin') {
-        setLoading(false);
-        return;
-      }
       const { data, error: err } = await supabase
         .from('maintenance_logs')
         .select('id, title, logged_at, description, created_by_id, user:created_by_id(name)')
@@ -67,9 +45,7 @@ function AdminActivity({ session }: Props) {
     return () => {
       active = false;
     };
-  }, [role]);
-
-  const isAdmin = role === 'admin';
+  }, []);
 
   return (
     <>
@@ -78,8 +54,7 @@ function AdminActivity({ session }: Props) {
         <div className="card stack">
           <h1>User Activity</h1>
           {loading && <p>Loading...</p>}
-          {!loading && !isAdmin && <p className="status">You do not have permission to view this page.</p>}
-          {!loading && isAdmin && (
+          {!loading && (
             <>
               {error && <p className="status">{error}</p>}
               {!error && activity.length === 0 && <p>No recent activity.</p>}

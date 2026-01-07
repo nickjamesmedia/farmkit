@@ -1,0 +1,60 @@
+#.agent/PLANS.md
+
+# Plans
+
+## Active plan: Retrofit Farmkit repo for AI/Human hybrid workflow (v0.0.7 → clean workflow baseline)
+**Status:** Active  
+**Owner:** Human-led, AI-assisted  
+**Started:** 2026-01-03
+
+### Goal
+Make the repo easy to work in (and hard to “vibe code” in) by establishing a clear, durable workflow and lightweight structure that supports incremental improvements to the existing prototype.
+
+### Non-goals
+- Rewriting the app or switching stacks.
+- Large refactors “for cleanliness” without user-facing value.
+- Designing future modules in detail beyond what is needed to support the next milestone.
+- Introducing major tooling/dependencies unless explicitly chosen.
+
+### Assumptions
+- The v0.0.7 prototype is functional and should be treated as reference behavior.
+- The project will continue with React + Supabase for v0.x unless explicitly changed.
+- Improvements will be delivered incrementally and validated minimally each step.
+
+### Work items (ordered)
+1) **Workflow foundation**
+   - Ensure `AGENTS.md` is present and correct.
+   - Ensure `.agent/CONTEXT.md` and `.agent/CONSTRAINTS.md` reflect Farmkit reality.
+   - Add/confirm remaining `.agent/` files: `PLANS.md`, `TASKS.md`, `DECISIONS.md`, `REVIEW_CHECKLIST.md`.
+
+2) **Repository inventory**
+   - Capture a high-level repo map (major directories, runtime entry points).
+   - Identify “hot zones” (areas most frequently changed) and “risk zones” (auth, data model, permissions).
+
+3) **Conventions (minimal, enforceable)**
+   - Establish naming + folder conventions where they reduce confusion immediately.
+   - Define a lightweight “how to add a feature” path (where to put code, where to record decisions).
+
+### RLS migration outline (draft)
+- Phase 0: remove UI role-based filtering so everyone sees the admin view (temporary; not a security boundary).
+- Inventory all remaining data access points (pages + queries) after UI filtering is removed.
+- Define target access rules per role and per table (Admin/Manager/User; personal vs shared).
+- Draft RLS policies and required helper functions; document required claims/roles.
+- Implement policies in `supabase/schema.sql` (or migrations) and validate with role-scoped tests.
+- Update frontend queries to rely on RLS, keeping only UX filters (not access control).
+- Document rollback path and data safety notes before enforcing policies in production.
+
+### Acceptance criteria
+- `.agent/` contains current, project-specific: `CONTEXT.md`, `CONSTRAINTS.md`, `PLANS.md`, `TASKS.md`, `DECISIONS.md`, `REVIEW_CHECKLIST.md`.
+- There is exactly **one active plan** and an actionable task list.
+- Repo has an agreed “how we work here” workflow that prevents silent assumptions.
+- No internal customer/farm names appear in public docs.
+
+### Validation
+- Markdown files render cleanly (headings, lists, links).
+- If any code changes are made under this plan, minimal available checks are run (or unverified items are recorded).
+
+---
+
+## Backlog plans (inactive)
+_Add new plans here when needed. Keep only one Active plan at a time._

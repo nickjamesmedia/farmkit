@@ -47,7 +47,6 @@ type UserOption = {
 };
 
 function FarmSetup({ session }: Props) {
-  const [role, setRole] = useState<string | null>(null);
   const [farm, setFarm] = useState<Farm | null>(null);
   const [location, setLocation] = useState<Location | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -138,23 +137,6 @@ function FarmSetup({ session }: Props) {
       setLoading(true);
       setError(null);
 
-      const [{ data: profile, error: profileErr }] = await Promise.all([
-        supabase
-          .from('app_users')
-          .select('id, role')
-          .eq('auth_user_id', session.user.id)
-          .maybeSingle(),
-      ]);
-
-      if (!active) return;
-      if (profileErr) {
-        setError(profileErr.message);
-        setLoading(false);
-        return;
-      }
-
-      setRole(profile?.role ?? null);
-
       const [{ data: farmData, error: farmErr }, { data: usersData, error: usersErr }] =
         await Promise.all([
           supabase
@@ -196,7 +178,6 @@ function FarmSetup({ session }: Props) {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (role !== 'admin') return;
 
     setSaving(true);
     setError(null);
@@ -235,7 +216,6 @@ function FarmSetup({ session }: Props) {
 
   const handleLocationSave = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (role !== 'admin') return;
     if (!farmState.id) {
       setLocationStatus('Save farm first.');
       return;
@@ -260,20 +240,6 @@ function FarmSetup({ session }: Props) {
     }
     setSavingLocation(false);
   };
-
-  if (role !== 'admin' && !loading) {
-    return (
-      <>
-        <Nav session={session} email={session.user.email} pageTitle="Farm Setup" />
-        <div className="app">
-          <div className="card stack">
-            <h1>Farm Setup</h1>
-            <p>You do not have permission to access this page.</p>
-          </div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>
@@ -409,7 +375,7 @@ function FarmSetup({ session }: Props) {
                 />
               </label>
 
-              <button type="submit" disabled={saving || role !== 'admin'}>
+              <button type="submit" disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
               </button>
 
@@ -418,10 +384,9 @@ function FarmSetup({ session }: Props) {
             </form>
           )}
         </div>
-        {role === 'admin' && (
-          <div className="card stack">
-            <h2>Location</h2>
-            <form className="stack" onSubmit={handleLocationSave}>
+        <div className="card stack">
+          <h2>Location</h2>
+          <form className="stack" onSubmit={handleLocationSave}>
               <label className="stack">
                 <span>Location name</span>
                 <input
@@ -557,13 +522,12 @@ function FarmSetup({ session }: Props) {
                   }
                 />
               </label>
-              <button type="submit" disabled={savingLocation || role !== 'admin'}>
+              <button type="submit" disabled={savingLocation}>
                 {savingLocation ? 'Saving...' : 'Save Location'}
               </button>
               {locationStatus && <p className="status">{locationStatus}</p>}
-            </form>
-          </div>
-        )}
+          </form>
+        </div>
       </div>
     </>
   );

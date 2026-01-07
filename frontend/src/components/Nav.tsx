@@ -17,7 +17,6 @@ function Nav({ session, email, pageTitle }: NavProps) {
   const [farmName, setFarmName] = useState<string | null>(null);
   const [farmFavicon, setFarmFavicon] = useState<string | null>(null);
   const [farmLogo, setFarmLogo] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -32,7 +31,7 @@ function Nav({ session, email, pageTitle }: NavProps) {
       const [{ data: profile }, { data: farm }] = await Promise.all([
         supabase
           .from('app_users')
-          .select('name, role')
+          .select('name')
           .eq('auth_user_id', session.user.id)
           .maybeSingle(),
         supabase
@@ -47,7 +46,6 @@ function Nav({ session, email, pageTitle }: NavProps) {
       setFarmName(farm?.name ?? null);
       setFarmFavicon(farm?.favicon_url ?? null);
       setFarmLogo(farm?.logo_url ?? null);
-      setIsAdmin(profile?.role === 'admin');
     };
     loadProfile();
     return () => {
@@ -243,12 +241,8 @@ function Nav({ session, email, pageTitle }: NavProps) {
             >
               {loading ? 'Signing out...' : 'Logout'}
             </button>
-            {isAdmin && (
-              <>
-                {' | '}
-                <Link to="/admin">Admin Tools</Link>
-              </>
-            )}
+            {' | '}
+            <Link to="/admin">Admin Tools</Link>
           </div>
         </div>
         <div

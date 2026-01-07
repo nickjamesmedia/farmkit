@@ -45,7 +45,6 @@ function EquipmentDetail({ session }: Props) {
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Equipment>>({});
 
@@ -55,27 +54,6 @@ function EquipmentDetail({ session }: Props) {
     [decoded],
   );
   const targetSlug = useMemo(() => toSlug(decoded), [decoded]);
-
-  useEffect(() => {
-    let active = true;
-    const loadProfile = async () => {
-      const { data, error } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      if (error) {
-        setIsAdmin(false);
-      } else {
-        setIsAdmin(data?.role === 'admin');
-      }
-    };
-    loadProfile();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
 
   useEffect(() => {
     let active = true;
@@ -202,17 +180,15 @@ function EquipmentDetail({ session }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h1>{equipment.nickname ?? 'Equipment'}</h1>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(true);
-                    setForm(equipment);
-                  }}
-                >
-                  Edit Equipment
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(true);
+                  setForm(equipment);
+                }}
+              >
+                Edit Equipment
+              </button>
               <Link className="nav-btn" to={`/maintenance/add?equipment_id=${equipment.id}`}>
                 Log Maintenance
               </Link>

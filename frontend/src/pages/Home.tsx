@@ -8,11 +8,6 @@ type Props = {
   session: Session;
 };
 
-type Profile = {
-  id: string;
-  role: string | null;
-};
-
 type MaintenanceLogRow = {
   id: string;
   title: string;
@@ -26,66 +21,29 @@ type MaintenanceLogRow = {
 };
 
 function Home({ session }: Props) {
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [logs, setLogs] = useState<MaintenanceLogRow[]>([]);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [logsLoading, setLogsLoading] = useState(true);
 
-  const isAdmin = profile?.role === 'admin';
-
   const quickActions = useMemo(() => {
-    const actions = [
-      { label: 'Log Maintenance', to: '/maintenance/add', roles: ['admin', 'user'] },
-      { label: 'View Equipment', to: '/equipment', roles: ['admin', 'user'] },
-      { label: 'Account', to: '/account', roles: ['admin', 'user'] },
+    return [
+      { label: 'Log Maintenance', to: '/maintenance/add' },
+      { label: 'View Equipment', to: '/equipment' },
+      { label: 'Account', to: '/account' },
+      { label: 'Manage Users', to: '/users' },
+      { label: 'Farm Setup', to: '/farm' },
     ];
-    if (isAdmin) {
-      actions.push(
-        { label: 'Manage Users', to: '/users', roles: ['admin'] },
-        { label: 'Farm Setup', to: '/farm', roles: ['admin'] },
-      );
-    }
-    return actions;
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     let active = true;
 
-    const loadProfile = async () => {
-      const { data, error } = await supabase
-        .from('app_users')
-        .select('id, role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      if (error) {
-        setProfile(null);
-        return;
-      }
-      setProfile(data as Profile);
-    };
-
-    loadProfile();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
-
-  useEffect(() => {
-    if (!profile?.id) {
-      setLogs([]);
-      setLogsLoading(false);
-      return;
-    }
-
-    let active = true;
     const loadLogs = async () => {
       setLogsLoading(true);
       setLogsError(null);
       const { data, error } = await supabase
         .from('maintenance_logs')
         .select('id, title, status, maintenance_date, logged_at, equipment:equipment_id(nickname, unit_number)')
-        .eq('created_by_id', profile.id)
         .order('maintenance_date', { ascending: false })
         .order('logged_at', { ascending: false })
         .limit(10);
@@ -108,7 +66,7 @@ function Home({ session }: Props) {
     return () => {
       active = false;
     };
-  }, [profile?.id]);
+  }, []);
 
   return (
     <>

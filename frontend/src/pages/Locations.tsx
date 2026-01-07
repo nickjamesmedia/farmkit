@@ -32,26 +32,8 @@ function Locations({ session }: Props) {
   const [rows, setRows] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [quickview, setQuickview] = useState<Location | null>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    let active = true;
-    const loadRole = async () => {
-      const { data } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      setIsAdmin(data?.role === 'admin');
-    };
-    loadRole();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
 
   useEffect(() => {
     let active = true;
@@ -158,16 +140,12 @@ function Locations({ session }: Props) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <>
-                  <button type="button" onClick={() => alert('Edit location (admin only)')}>
-                    Edit
-                  </button>
-                  <button type="button" onClick={() => alert('Delete location (admin only)')}>
-                    Delete
-                  </button>
-                </>
-              )}
+              <button type="button" onClick={() => alert('Edit location (admin only)')}>
+                Edit
+              </button>
+              <button type="button" onClick={() => alert('Delete location (admin only)')}>
+                Delete
+              </button>
               <button
                 type="button"
                 onClick={() => {

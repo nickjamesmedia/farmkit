@@ -34,29 +34,11 @@ type Location = {
 function LocationDetail({ session }: Props) {
   const { slug } = useParams<{ slug: string }>();
   const [row, setRow] = useState<Location | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const decoded = useMemo(() => decodeURIComponent(slug ?? ''), [slug]);
   const targetSlug = useMemo(() => toSlug(decoded), [decoded]);
-
-  useEffect(() => {
-    let active = true;
-    const loadRole = async () => {
-      const { data } = await supabase
-        .from('app_users')
-        .select('role')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (!active) return;
-      setIsAdmin(data?.role === 'admin');
-    };
-    loadRole();
-    return () => {
-      active = false;
-    };
-  }, [session.user.id]);
 
   useEffect(() => {
     let active = true;
@@ -103,16 +85,12 @@ function LocationDetail({ session }: Props) {
               {row.name} {row.code ? `(${row.code})` : ''}
             </h1>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <>
-                  <button type="button" onClick={() => alert('Edit location (admin only)')}>
-                    Edit
-                  </button>
-                  <button type="button" onClick={() => alert('Delete location (admin only)')}>
-                    Delete
-                  </button>
-                </>
-              )}
+              <button type="button" onClick={() => alert('Edit location (admin only)')}>
+                Edit
+              </button>
+              <button type="button" onClick={() => alert('Delete location (admin only)')}>
+                Delete
+              </button>
               <Link className="nav-btn" to="/locations">
                 Back to Locations
               </Link>

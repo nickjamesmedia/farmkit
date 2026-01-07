@@ -19,7 +19,7 @@ import BuildingDetail from './pages/BuildingDetail';
 import AdminTools from './pages/AdminTools';
 import AdminActivity from './pages/AdminActivity';
 
-const APP_VERSION = '0.0.7';
+const APP_VERSION = '0.0.8';
 
 function versionStage(version: string): 'Alpha' | 'Beta' | 'Stable' {
   const [majorStr, minorStr] = version.split('.');
