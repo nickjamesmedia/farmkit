@@ -7,6 +7,7 @@
 - [ ] **Revise v0.1 beta data model** (tables, relationships, and schema deltas)
 
 ## Done
+- [x] **Create prototype and pre-beta branches** (`v0.0.7-protoype` snapshot + `pre-0.1-beta` workstream)
 - [x] **Create chat-thread closeout skill** (log relevant discussion details and commit changes)
 - [x] **Create plan-archiving skill and document in agent docs**
 - [x] **Archive active plan and reset PLANS template**

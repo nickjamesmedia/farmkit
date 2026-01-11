@@ -4,6 +4,11 @@
 
 > Add new decisions at the top. Do not rewrite history; append corrections as new entries.
 
+## 2026-01-11 - Branch naming for prototype snapshot and pre-beta workstream
+**Context:** We needed a durable snapshot of the v0.0.7 prototype while continuing work toward v0.1 beta on a separate branch.
+**Decision:** Keep `main` as-is, create `v0.0.7-protoype` as the prototype snapshot branch, and use `pre-0.1-beta` as the active workstream branch.
+**Consequences:** `v0.0.7-protoype` serves as the frozen prototype reference; `pre-0.1-beta` holds ongoing pre-beta changes.
+
 ## 2026-01-03 - Cutover to v0.0.8 alpha (post-prototype)
 **Context:** We need a clean start after the v0.0.7 prototype epoch.
 **Decision:** v0.0.8 is the first post-prototype alpha; future work follows the new workflow on the post-prototype branch.
