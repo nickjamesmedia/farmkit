@@ -155,6 +155,7 @@ These items may be interesting later, but are explicitly **out of scope** unless
 ## Repo inventory (current)
 **Top-level map**
 - `.agent/`: workflow docs (plans, tasks, decisions, constraints, review checklist)
+- `agents/skills/`: local Codex skills for repo workflows
 - `docs/`: dev + user docs (`docs/dev`, `docs/user`)
 - `frontend/`: React app (Vite)
 - `supabase/`: schema + seed SQL and a helper script
@@ -181,6 +182,8 @@ These items may be interesting later, but are explicitly **out of scope** unless
 
 ## Notes (append-only)
 > Add new notes at the top of this section. Do not delete old notes.
+
+- 2026-01-11: Added local skill `archive-plans` under `agents/skills/` to standardize plan archiving.
 
 - 2026-01-03: Bumped current alpha to v0.0.8 as the post-prototype clean start.
 
