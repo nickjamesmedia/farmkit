@@ -2,59 +2,71 @@
 
 # Plans
 
-## Active plan: Retrofit Farmkit repo for AI/Human hybrid workflow (v0.0.7 → clean workflow baseline)
-**Status:** Active  
-**Owner:** Human-led, AI-assisted  
-**Started:** 2026-01-03
+## Active plan: Create chat-thread closeout skill
+**Status:** Completed  
+**Owner:** AI-led, human-approved  
+**Started:** 2026-01-11
 
 ### Goal
-Make the repo easy to work in (and hard to “vibe code” in) by establishing a clear, durable workflow and lightweight structure that supports incremental improvements to the existing prototype.
+Create a reusable skill that standardizes closing out chat threads by logging relevant discussion details in the appropriate Markdown files and committing the related changes.
 
 ### Non-goals
-- Rewriting the app or switching stacks.
-- Large refactors “for cleanliness” without user-facing value.
-- Designing future modules in detail beyond what is needed to support the next milestone.
-- Introducing major tooling/dependencies unless explicitly chosen.
+- Reworking unrelated `.agent/` processes or content.
+- Changing repo workflow beyond documenting the closeout procedure.
+- Implementing app code changes.
 
 ### Assumptions
-- The v0.0.7 prototype is functional and should be treated as reference behavior.
-- The project will continue with React + Supabase for v0.x unless explicitly changed.
-- Improvements will be delivered incrementally and validated minimally each step.
+- Skill will live in `agents/skills/` and be packaged in `agents/skills/dist/`.
+- Closeout logging focuses on `.agent/` Markdown files unless the thread explicitly touches other docs.
 
 ### Work items (ordered)
-1) **Workflow foundation**
-   - Ensure `AGENTS.md` is present and correct.
-   - Ensure `.agent/CONTEXT.md` and `.agent/CONSTRAINTS.md` reflect Farmkit reality.
-   - Add/confirm remaining `.agent/` files: `PLANS.md`, `TASKS.md`, `DECISIONS.md`, `REVIEW_CHECKLIST.md`.
-
-2) **Repository inventory**
-   - Capture a high-level repo map (major directories, runtime entry points).
-   - Identify “hot zones” (areas most frequently changed) and “risk zones” (auth, data model, permissions).
-
-3) **Conventions (minimal, enforceable)**
-   - Establish naming + folder conventions where they reduce confusion immediately.
-   - Define a lightweight “how to add a feature” path (where to put code, where to record decisions).
-
-### RLS migration outline (draft)
-- Phase 0: remove UI role-based filtering so everyone sees the admin view (temporary; not a security boundary).
-- Inventory all remaining data access points (pages + queries) after UI filtering is removed.
-- Define target access rules per role and per table (Admin/Manager/User; personal vs shared).
-- Draft RLS policies and required helper functions; document required claims/roles.
-- Implement policies in `supabase/schema.sql` (or migrations) and validate with role-scoped tests.
-- Update frontend queries to rely on RLS, keeping only UX filters (not access control).
-- Document rollback path and data safety notes before enforcing policies in production.
+1) Confirm skill name, location, and packaging expectations.
+2) Initialize skill structure and write concise `SKILL.md`.
+3) Add any helper references if needed (prefer none).
+4) Package the skill for distribution.
+5) Update `.agent/TASKS.md` and `.agent/DECISIONS.md` if needed.
 
 ### Acceptance criteria
-- `.agent/` contains current, project-specific: `CONTEXT.md`, `CONSTRAINTS.md`, `PLANS.md`, `TASKS.md`, `DECISIONS.md`, `REVIEW_CHECKLIST.md`.
-- There is exactly **one active plan** and an actionable task list.
-- Repo has an agreed “how we work here” workflow that prevents silent assumptions.
-- No internal customer/farm names appear in public docs.
+- Skill exists with valid `SKILL.md` and clear trigger description.
+- Packaged `.skill` file is created in `agents/skills/dist/`.
+- `.agent/TASKS.md` reflects completion; `.agent/DECISIONS.md` updated if tradeoffs are made.
 
 ### Validation
-- Markdown files render cleanly (headings, lists, links).
-- If any code changes are made under this plan, minimal available checks are run (or unverified items are recorded).
+- Skill folder structure validated by inspection and packaging.
+- Markdown updates are readable and consistent.
 
 ---
 
 ## Backlog plans (inactive)
+### Create plan-archiving skill + update agent docs
+**Status:** Completed  
+**Owner:** AI-led, human-approved  
+**Started:** 2026-01-11
+
+#### Goal
+Create a reusable skill that standardizes archiving `.agent/PLANS.md`, then reference it in the appropriate agent docs.
+
+#### Non-goals
+- Reworking unrelated `.agent/` processes or content.
+- Changing how plans are written beyond a minimal template reset.
+
+#### Assumptions
+- Skill will live in the repo unless you want it in `$CODEX_HOME/skills`.
+- Only `.agent/` docs need updates (no app code changes).
+
+#### Work items (ordered)
+1) Confirm skill location and packaging/install expectations.
+2) Initialize skill (name, structure) and write concise `SKILL.md`.
+3) Add any helper scripts or references if needed (prefer none).
+4) Update relevant agent docs to reference the new skill.
+5) Record task status and any decisions.
+
+#### Acceptance criteria
+- Skill exists with valid `SKILL.md` and clear trigger description.
+- Agent docs reference the skill in the agreed locations.
+- `.agent/TASKS.md` reflects completion; `.agent/DECISIONS.md` updated if tradeoffs are made.
+
+#### Validation
+- Skill folder structure validated by inspection (or packaged if required).
+- Markdown updates are readable and consistent.
 _Add new plans here when needed. Keep only one Active plan at a time._

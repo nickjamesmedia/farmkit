@@ -7,6 +7,9 @@
 - [ ] **Revise v0.1 beta data model** (tables, relationships, and schema deltas)
 
 ## Done
+- [x] **Create chat-thread closeout skill** (log relevant discussion details and commit changes)
+- [x] **Create plan-archiving skill and document in agent docs**
+- [x] **Archive active plan and reset PLANS template**
 - [x] **Remove UI role-based filtering (temporary admin view)** (first step toward RLS migration)
 - [x] **Define version control restraints and instructions** (branching, reviews, and commit hygiene)
 - [x] **Plan RLS migration** (replace UI-only role filtering with RLS; document scope and approach)
