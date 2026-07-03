@@ -24,21 +24,21 @@ Farm Kit is a simple web app that helps farms track equipment, log maintenance, 
 ---
 
 ## Documentation
-Project docs live in `farmkit\docs` (relative to the repo root):
-- `farmkit\.agent`: AI agent docs (context, memory, etc)
-- `farmkit\docs\dev`: developer docs
-- `farmkit\docs\User`: user instructions
+Project docs live in `docs/` and `.agent/`:
+- `.agent/`: AI agent docs (context, memory, tasks, decisions)
+- `docs/dev/`: developer docs
+- `docs/user/`: user instructions
 
-`farmkit\AGENTS.md` contains the core instructions for AI agents working on this project.
+`AGENTS.md` contains the core instructions for AI agents working on this project.
 
 ---
 
-## Core features (v1)
-- Admin and general user roles  
-- Add/edit equipment, locations, users  
-- Log maintenance tasks  
+## Core features (current)
+- Admin/manager/user roles with farm memberships  
+- Equipment, locations, and building tracking  
+- Maintenance logging with per-log detail page  
+- User management (memberships, roles, account mode)  
 - Search and filter equipment  
-- Export logs  
 - Simple, mobile-friendly UI  
 
 ---
@@ -48,10 +48,23 @@ See `docs/dev/data_model.md`.
 
 ---
 
+## Key routes (current)
+- `/dashboard`: dashboard (legacy `/app` redirects here)
+- `/equipment`, `/equipment/:slug`: equipment list and detail
+- `/maintenance`: maintenance dashboard
+- `/maintenance/add`: add log
+- `/maintenance/log/:id`: log detail/edit
+- `/account`: account settings
+- `/farm`: read-only farm info
+- `/admin/farm`: farm setup (admin)
+- `/locations`, `/buildings`: location/building lists
+
+---
+
 ## Seeding the database
 
-- Supabase SQL editor: run `supabase/seed_sample_data.sql`
-- Or `psql "$SUPABASE_DB_URL" -f supabase/seed_sample_data.sql`
+- Supabase SQL editor: run `supabase/seed_v0_1_demo.sql`
+- Or `psql "$SUPABASE_DB_URL" -f supabase/seed_v0_1_demo.sql`
 - Refresh the app at `http://localhost:5173/` (logged in) to see seeded records.
 
 ## Inviting users (server-side)
@@ -60,7 +73,7 @@ See `docs/dev/data_model.md`.
 ```bash
 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx ts-node supabase/invite_user.ts user@example.com admin "First" "Last"
 ```
-The script uses `auth.admin.inviteUserByEmail`, upserts `app_users` with the returned `auth_user_id`, and defaults role to `user` if not specified.
+Note: `supabase/invite_user.ts` currently targets the prototype `app_users` table; update it for v0.1 (`user_profiles` + `farm_memberships`) before relying on it.
 
 To wire the frontend “Send login email” button (Manage Users page):
 - Provide an HTTP endpoint (e.g., Netlify/Vercel function) at `VITE_INVITE_ENDPOINT` (defaults to `/api/send-invite`).

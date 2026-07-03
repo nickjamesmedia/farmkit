@@ -89,7 +89,43 @@ th {
   border-radius: 0.4rem;
   font-size: 0.75rem;
   z-index: 1000;
-  pointer-events: none;
+  pointer-events: auto;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.audit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.audit-pill {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+}
+
+.audit-table td {
+  vertical-align: top;
+}
+
+.audit-json {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
 }
 
 .modal-backdrop {
@@ -112,6 +148,8 @@ th {
   padding: 1.5rem;
   width: min(520px, 100%);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
 }
 
 .mobile-toggle {

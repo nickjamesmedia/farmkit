@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
+import { useNavData } from '../lib/navDataContext';
 import { toSlug } from '../utils/slug';
+import ModuleGate from './ModuleGate';
 
 type NavProps = {
   session?: Session;
@@ -11,12 +13,21 @@ type NavProps = {
 };
 
 function Nav({ session, email, pageTitle }: NavProps) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [farmName, setFarmName] = useState<string | null>(null);
-  const [farmFavicon, setFarmFavicon] = useState<string | null>(null);
-  const [farmLogo, setFarmLogo] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const {
+    loading: navLoading,
+    error: navError,
+    displayName,
+    farmName,
+    farmFavicon,
+    farmLogo,
+    activeFarmId,
+    dataScopeFarmIds,
+    moduleEnabledByKey,
+    roleKey,
+    email: contextEmail,
+  } = useNavData();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<
@@ -24,37 +35,16 @@ function Nav({ session, email, pageTitle }: NavProps) {
   >([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let active = true;
-    const loadProfile = async () => {
-      if (!session?.user) return;
-      const [{ data: profile }, { data: farm }] = await Promise.all([
-        supabase
-          .from('app_users')
-          .select('name')
-          .eq('auth_user_id', session.user.id)
-          .maybeSingle(),
-        supabase
-          .from('farms')
-          .select('name, favicon_url, logo_url')
-          .order('created_at')
-          .limit(1)
-          .maybeSingle(),
-      ]);
-      if (!active) return;
-      setDisplayName(profile?.name ?? null);
-      setFarmName(farm?.name ?? null);
-      setFarmFavicon(farm?.favicon_url ?? null);
-      setFarmLogo(farm?.logo_url ?? null);
-    };
-    loadProfile();
-    return () => {
-      active = false;
-    };
-  }, [session?.user]);
+  const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
+  const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const buildingsEnabled =
+    (moduleEnabledByKey.containers ?? true) &&
+    (moduleEnabledByKey.containers_buildings ?? true);
+  const searchEnabled = equipmentEnabled || maintenanceEnabled;
+  const adminToolsEnabled = roleKey === 'admin' || roleKey === 'manager';
 
   useEffect(() => {
-    const baseTitle = 'Farm Kit';
+    const baseTitle = 'farmkit';
     const farm = farmName ? `${farmName} | ` : '';
     const page = pageTitle ? `${pageTitle} | ` : '';
     document.title = `${page}${farm}${baseTitle}`;
@@ -70,7 +60,7 @@ function Nav({ session, email, pageTitle }: NavProps) {
     }
     link.href = farmFavicon;
   }, [farmFavicon]);
-  
+
   useEffect(() => {
     let active = true;
     const runSearch = async () => {
@@ -78,7 +68,11 @@ function Nav({ session, email, pageTitle }: NavProps) {
         setSearchResults([]);
         return;
       }
-      const { data, error } = await supabase
+      if (!equipmentEnabled) {
+        setSearchResults([]);
+        return;
+      }
+      let query = supabase
         .from('equipment')
         .select('id, nickname, unit_number, category, make, model')
         .or(
@@ -86,6 +80,12 @@ function Nav({ session, email, pageTitle }: NavProps) {
         )
         .order('nickname', { ascending: true })
         .limit(10);
+      if (dataScopeFarmIds.length > 0) {
+        query = query.in('farm_id', dataScopeFarmIds);
+      } else if (activeFarmId) {
+        query = query.eq('farm_id', activeFarmId);
+      }
+      const { data, error } = await query;
       if (!active) return;
       if (error) {
         setSearchResults([]);
@@ -111,25 +111,42 @@ function Nav({ session, email, pageTitle }: NavProps) {
     return () => {
       active = false;
     };
-  }, [searchTerm]);
+  }, [searchTerm, activeFarmId, dataScopeFarmIds, equipmentEnabled]);
 
   const handleLogout = async () => {
-    setLoading(true);
-    setError(null);
+    setSigningOut(true);
+    setSignOutError(null);
     const { error: signOutError } = await supabase.auth.signOut();
     if (signOutError) {
-      setError(signOutError.message);
-      setLoading(false);
+      setSignOutError(signOutError.message);
+      setSigningOut(false);
       return;
     }
     setMenuOpen(false);
     navigate('/login', { replace: true });
   };
 
-  const welcomeText = displayName || email || session?.user.email || '';
+  const welcomeText =
+    displayName || email || contextEmail || session?.user.email || '';
   const displayLink = <Link to="/account">Set display name</Link>;
-  const farmLink = <Link to="/farm">Set farm name</Link>;
-  const displayNode = welcomeText ? <strong>{welcomeText}</strong> : displayLink;
+  const displayNode =
+    navLoading && !welcomeText ? (
+      <span>Loading...</span>
+    ) : welcomeText ? (
+      <Link to="/account">
+        <strong>{welcomeText}</strong>
+      </Link>
+    ) : (
+      displayLink
+    );
+  const farmLink =
+    roleKey === 'admin' ? (
+      <Link to="/admin/farm">Set farm name</Link>
+    ) : (
+      <Link to="/farm">Farm Info</Link>
+    );
+  const farmNode = farmName ? farmName : navLoading ? 'Loading farm...' : farmLink;
+  const statusError = signOutError || navError;
 
   const closeMenu = () => setMenuOpen(false);
   const toggleMenu = () => setMenuOpen((v) => !v);
@@ -158,7 +175,7 @@ function Nav({ session, email, pageTitle }: NavProps) {
       >
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {farmLogo && (
-            <Link to="/app" style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <Link to="/farm" style={{ display: 'inline-flex', alignItems: 'center' }}>
               <img
                 src={farmLogo}
                 alt="Farm logo"
@@ -171,8 +188,8 @@ function Nav({ session, email, pageTitle }: NavProps) {
               />
             </Link>
           )}
-          <Link to="/app" style={{ fontWeight: 700, fontSize: '1rem' }}>
-            {farmName || farmLink}
+          <Link to="/farm" style={{ fontWeight: 700, fontSize: '1rem' }}>
+            {farmNode}
           </Link>
         </div>
         <button
@@ -186,24 +203,30 @@ function Nav({ session, email, pageTitle }: NavProps) {
           <span />
           <span />
         </button>
-        <div className={`nav-links ${menuOpen ? 'nav-open' : ''}`}>
-          <Link className="nav-btn" to="/app" onClick={closeMenu}>
-            Home
-          </Link>
-          <Link className="nav-btn" to="/equipment" onClick={closeMenu}>
-            Equipment
-          </Link>
-          <Link className="nav-btn" to="/locations" onClick={closeMenu}>
-            Locations
-          </Link>
-          <Link className="nav-btn" to="/buildings" onClick={closeMenu}>
-            Buildings
-          </Link>
-          <Link className="nav-btn primary" to="/maintenance/add" onClick={closeMenu}>
-            Add Log
-          </Link>
-        </div>
-      </div>
+         <div className={`nav-links ${menuOpen ? 'nav-open' : ''}`}>
+           <Link className="nav-btn" to="/dashboard" onClick={closeMenu}>
+             Dashboard
+           </Link>
+           <ModuleGate moduleKey="equipment">
+             <Link className="nav-btn" to="/equipment" onClick={closeMenu}>
+               Equipment
+             </Link>
+           </ModuleGate>
+           <ModuleGate moduleKey={['containers', 'containers_buildings']}>
+             <Link className="nav-btn" to="/buildings" onClick={closeMenu}>
+               Buildings
+             </Link>
+           </ModuleGate>
+           <Link className="nav-btn" to="/locations" onClick={closeMenu}>
+             Locations
+           </Link>
+           <ModuleGate moduleKey="maintenance">
+             <Link className="nav-btn primary" to="/maintenance/add" onClick={closeMenu}>
+               Add Log
+             </Link>
+           </ModuleGate>
+         </div>
+       </div>
       <div
         style={{
           display: 'flex',
@@ -229,7 +252,7 @@ function Nav({ session, email, pageTitle }: NavProps) {
                 await handleLogout();
                 closeMenu();
               }}
-              disabled={loading}
+              disabled={signingOut}
               style={{
                 background: 'none',
                 border: 'none',
@@ -239,10 +262,14 @@ function Nav({ session, email, pageTitle }: NavProps) {
                 cursor: 'pointer',
               }}
             >
-              {loading ? 'Signing out...' : 'Logout'}
+              {signingOut ? 'Signing out...' : 'Logout'}
             </button>
-            {' | '}
-            <Link to="/admin">Admin Tools</Link>
+            {adminToolsEnabled && (
+              <>
+                {' | '}
+                <Link to="/admin">Admin Tools</Link>
+              </>
+            )}
           </div>
         </div>
         <div
@@ -295,10 +322,10 @@ function Nav({ session, email, pageTitle }: NavProps) {
               </div>
             )}
           </div>
-          <Link to="/search">Advanced</Link>
+          {searchEnabled && <Link to="/search">Advanced</Link>}
         </div>
       </div>
-      {error && <p className="status">{error}</p>}
+      {statusError && <p className="status">{statusError}</p>}
       {menuOpen && (
         <div
           className="modal-backdrop"
@@ -313,36 +340,49 @@ function Nav({ session, email, pageTitle }: NavProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="stack">
-              <Link className="nav-btn" to="/app" onClick={closeMenu}>
-                Home
+              <Link className="nav-btn" to="/dashboard" onClick={closeMenu}>
+                Dashboard
               </Link>
-              <Link className="nav-btn" to="/equipment" onClick={closeMenu}>
-                Equipment
-              </Link>
+              {equipmentEnabled && (
+                <Link className="nav-btn" to="/equipment" onClick={closeMenu}>
+                  Equipment
+                </Link>
+              )}
+              {buildingsEnabled && (
+                <Link className="nav-btn" to="/buildings" onClick={closeMenu}>
+                  Buildings
+                </Link>
+              )}
               <Link className="nav-btn" to="/locations" onClick={closeMenu}>
                 Locations
               </Link>
-              <Link className="nav-btn" to="/buildings" onClick={closeMenu}>
-                Buildings
-              </Link>
-              <Link className="nav-btn primary" to="/maintenance/add" onClick={closeMenu}>
-                Add Log
-              </Link>
-              <Link className="nav-btn" to="/search" onClick={closeMenu}>
-                Advanced Search
-              </Link>
+              {maintenanceEnabled && (
+                <Link className="nav-btn primary" to="/maintenance/add" onClick={closeMenu}>
+                  Add Log
+                </Link>
+              )}
+              {searchEnabled && (
+                <Link className="nav-btn" to="/search" onClick={closeMenu}>
+                  Advanced Search
+                </Link>
+              )}
               <Link className="nav-btn" to="/account" onClick={closeMenu}>
                 Account
               </Link>
+              {adminToolsEnabled && (
+                <Link className="nav-btn" to="/admin" onClick={closeMenu}>
+                  Admin Tools
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={async () => {
                   await handleLogout();
                   closeMenu();
                 }}
-                disabled={loading}
+                disabled={signingOut}
               >
-                {loading ? 'Signing out...' : 'Logout'}
+                {signingOut ? 'Signing out...' : 'Logout'}
               </button>
               <button
                 type="button"

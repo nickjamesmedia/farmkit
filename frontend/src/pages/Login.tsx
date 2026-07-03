@@ -14,7 +14,7 @@ function Login({ session }: Props) {
   const [statusMessage, setStatusMessage] = useState('');
 
   if (session) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleLogin = async (event: React.FormEvent) => {

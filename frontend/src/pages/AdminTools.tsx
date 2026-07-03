@@ -2,30 +2,103 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Link } from 'react-router-dom';
 import Nav from '../components/Nav';
+import QuickLinks from '../components/QuickLinks';
 import { supabase } from '../lib/supabaseClient';
+import { useNavData } from '../lib/navDataContext';
 
 type Props = { session: Session };
 
 function AdminTools({ session }: Props) {
   const [loading, setLoading] = useState(true);
   const [activity, setActivity] = useState<
-    { id: string; created_by_id: string | null; title: string; logged_at: string; user_name: string | null }[]
+    { id: string; created_by_auth_user_id: string | null; entered_by_person_id: string | null; title: string; logged_at: string; user_name: string | null }[]
   >([]);
   const [activityError, setActivityError] = useState<string | null>(null);
+  const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading, roleKey } = useNavData();
+  const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const isAdmin = roleKey === 'admin';
 
   useEffect(() => {
     let active = true;
     const loadActivity = async () => {
+      if (navLoading) {
+        setLoading(true);
+        return;
+      }
+      if (!activeFarmId) {
+        setActivityError('No farm assigned to your profile.');
+        setLoading(false);
+        return;
+      }
+      if (!maintenanceEnabled) {
+        setActivity([]);
+        setActivityError(null);
+        setLoading(false);
+        return;
+      }
       const { data, error } = await supabase
         .from('maintenance_logs')
-        .select('id, created_by_id, title, logged_at, user:created_by_id(name)')
+        .select('id, created_by_auth_user_id, entered_by_person_id, title, logged_at')
+        .in('farm_id', dataScopeFarmIds.length ? dataScopeFarmIds : [activeFarmId])
         .order('logged_at', { ascending: false })
         .limit(10);
       if (!active) return;
       if (error) {
         setActivityError(error.message);
       } else {
-        setActivity((data as any[]) ?? []);
+        const authIds = Array.from(
+          new Set(
+            (data ?? [])
+              .map((row) => row.created_by_auth_user_id)
+              .filter(Boolean),
+          ),
+        ) as string[];
+        const personIds = Array.from(
+          new Set(
+            (data ?? [])
+              .map((row) => row.entered_by_person_id)
+              .filter(Boolean),
+          ),
+        ) as string[];
+        const [{ data: profiles }, { data: people }] = await Promise.all([
+          authIds.length
+            ? supabase
+                .from('user_profiles')
+                .select('auth_user_id, display_name')
+                .in('auth_user_id', authIds)
+            : Promise.resolve({ data: [] }),
+          personIds.length
+            ? supabase
+                .from('people')
+                .select('id, display_name, first_name, last_name')
+                .in('id', personIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+        const profileMap: Record<string, string> = {};
+        (profiles ?? []).forEach((profile) => {
+          if (profile.display_name) {
+            profileMap[profile.auth_user_id] = profile.display_name;
+          }
+        });
+        const personMap: Record<string, string> = {};
+        (people ?? []).forEach((person) => {
+          const label =
+            person.display_name ||
+            [person.first_name, person.last_name].filter(Boolean).join(' ') ||
+            '';
+          if (label) {
+            personMap[person.id] = label;
+          }
+        });
+        const mapped =
+          data?.map((row) => ({
+            ...row,
+            user_name:
+              personMap[row.entered_by_person_id ?? ''] ||
+              profileMap[row.created_by_auth_user_id ?? ''] ||
+              null,
+          })) ?? [];
+        setActivity(mapped);
       }
       setLoading(false);
     };
@@ -33,18 +106,19 @@ function AdminTools({ session }: Props) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeFarmId, dataScopeFarmIds, maintenanceEnabled, navLoading]);
 
   return (
     <>
       <Nav session={session} email={session.user.email} pageTitle="Admin Tools" />
       <div className="app">
+        <QuickLinks />
         <div className="card stack">
           <h1>Admin Tools</h1>
           {loading && <p>Loading...</p>}
           {!loading && (
             <div className="stack">
-              <p>Quick links for administrators:</p>
+              <p>Admin-only tools:</p>
               <div
                 style={{
                   display: 'grid',
@@ -52,12 +126,8 @@ function AdminTools({ session }: Props) {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 }}
               >
-                <Link className="nav-btn" to="/users">Manage Users</Link>
-                <Link className="nav-btn" to="/farm">Farm Setup</Link>
-                <Link className="nav-btn" to="/locations">Locations</Link>
-                <Link className="nav-btn" to="/buildings">Buildings</Link>
-                <Link className="nav-btn" to="/equipment">Equipment</Link>
-                <Link className="nav-btn" to="/maintenance/add">Log Maintenance</Link>
+                {isAdmin && <Link className="nav-btn" to="/users">Manage Users</Link>}
+                {isAdmin && <Link className="nav-btn" to="/admin/farm">Farm Setup</Link>}
               </div>
               <div className="card stack" style={{ marginTop: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -80,7 +150,7 @@ function AdminTools({ session }: Props) {
                     <tbody>
                       {activity.map((row) => (
                         <tr key={row.id}>
-                          <td>{(row as any).user?.name || '-'}</td>
+                          <td>{row.user_name || '-'}</td>
                           <td>{row.title}</td>
                           <td>{row.logged_at}</td>
                         </tr>

@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
 import { toSlug } from '../utils/slug';
 
 type Equipment = {
   id: string;
-  location_id: string | null;
-  building_id: string | null;
+  farm_id: string;
+  home_container_id: string | null;
+  current_container_id: string | null;
   category: string | null;
   make: string | null;
   model: string | null;
@@ -27,11 +29,15 @@ type Equipment = {
   air_filter_number: string | null;
   active: boolean | null;
   notes: string | null;
-  location?: {
+  farm?: {
+    name: string | null;
+    slug: string | null;
+  } | null;
+  home_container?: {
     name: string | null;
     code: string | null;
   } | null;
-  building?: {
+  current_container?: {
     name: string | null;
     code: string | null;
   } | null;
@@ -65,6 +71,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
@@ -82,14 +89,45 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
+  const {
+    activeFarmId: navActiveFarmId,
+    dataScopeFarmIds,
+    moduleEnabledByKey,
+    loading: navLoading,
+    roleKey,
+  } = useNavData();
+  const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
+  const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const canManageEquipment = roleKey === 'admin' || roleKey === 'manager';
 
   useEffect(() => {
     const fetchEquipment = async () => {
       setLoading(true);
       setError(null);
+      if (navLoading) return;
+      if (!navActiveFarmId) {
+        setError('No farm assigned to your profile.');
+        setEquipment([]);
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
+      if (!equipmentEnabled) {
+        setEquipment([]);
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
+      setActiveFarmId(navActiveFarmId);
+      const farmScope = dataScopeFarmIds.length
+        ? dataScopeFarmIds
+        : [navActiveFarmId];
       const { data, error: err } = await supabase
         .from('equipment')
-        .select('*, location:location_id(name, code), building:building_id(name, code)');
+        .select(
+          '*, farm:farm_id(name, slug), home_container:home_container_id(name, code), current_container:current_container_id(name, code)',
+        )
+        .in('farm_id', farmScope);
       if (err) {
         setError(err.message);
         setEquipment([]);
@@ -109,7 +147,13 @@ function EquipmentPage({ session }: EquipmentPageProps) {
     };
 
     fetchEquipment();
-  }, [session.user.id]);
+  }, [
+    session.user.id,
+    navActiveFarmId,
+    dataScopeFarmIds,
+    equipmentEnabled,
+    navLoading,
+  ]);
 
   const resetForm = () => {
     setCategory('');
@@ -126,7 +170,14 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   };
 
   const refreshList = async () => {
-    const { data, error: err } = await supabase.from('equipment').select('*');
+    if (!activeFarmId) return;
+    const farmScope = dataScopeFarmIds.length ? dataScopeFarmIds : [activeFarmId];
+    const { data, error: err } = await supabase
+      .from('equipment')
+      .select(
+        '*, farm:farm_id(name, slug), home_container:home_container_id(name, code), current_container:current_container_id(name, code)',
+      )
+      .in('farm_id', farmScope);
     if (!err) setEquipment(data ?? []);
   };
 
@@ -134,6 +185,11 @@ function EquipmentPage({ session }: EquipmentPageProps) {
     event.preventDefault();
     setSaving(true);
     setFormError(null);
+    if (!activeFarmId) {
+      setFormError('No farm assigned to your profile.');
+      setSaving(false);
+      return;
+    }
 
     const payload = {
       nickname,
@@ -156,7 +212,9 @@ function EquipmentPage({ session }: EquipmentPageProps) {
         .eq('id', editingEquipment.id);
       insertError = error ?? null;
     } else {
-      const { error } = await supabase.from('equipment').insert(payload);
+      const { error } = await supabase
+        .from('equipment')
+        .insert({ ...payload, farm_id: activeFarmId });
       insertError = error ?? null;
     }
 
@@ -182,13 +240,24 @@ function EquipmentPage({ session }: EquipmentPageProps) {
     setLogs([]);
     setLogsError(null);
     setLogsLoading(true);
-    const { data, error: logsErr } = await supabase
+    if (!maintenanceEnabled) {
+      setLogs([]);
+      setLogsError('Maintenance module is disabled for this farm.');
+      setLogsLoading(false);
+      return;
+    }
+    let query = supabase
       .from('maintenance_logs')
       .select('*')
       .eq('equipment_id', item.id)
       .order('maintenance_date', { ascending: false })
       .order('logged_at', { ascending: false })
       .limit(5);
+    if (activeFarmId) {
+      const farmScope = dataScopeFarmIds.length ? dataScopeFarmIds : [activeFarmId];
+      query = query.in('farm_id', farmScope);
+    }
+    const { data, error: logsErr } = await query;
     if (logsErr) {
       setLogsError(logsErr.message);
       setLogs([]);
@@ -203,17 +272,30 @@ function EquipmentPage({ session }: EquipmentPageProps) {
       <Nav session={session} email={session.user.email} pageTitle="Equipment" />
       <div className="app">
         <div className="card stack">
-          <div className="stack" style={{ alignItems: 'flex-start' }}>
-            <h1>Equipment</h1>
-            <button type="button" onClick={() => setShowForm(true)}>
-              Add equipment
-            </button>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <h1 style={{ margin: 0 }}>Equipment</h1>
+            {equipmentEnabled && canManageEquipment && (
+              <button type="button" onClick={() => setShowForm(true)}>
+                Add equipment
+              </button>
+            )}
           </div>
 
           {loading && <p>Loading...</p>}
           {error && <p className="status">{error}</p>}
+          {!loading && !error && !equipmentEnabled && !navLoading && (
+            <p className="status">Equipment module is disabled for this farm.</p>
+          )}
 
-          {!loading && !error && equipment.length === 0 && (
+          {!loading && !error && equipmentEnabled && equipment.length === 0 && (
             <p>No equipment found.</p>
           )}
 
@@ -235,15 +317,21 @@ function EquipmentPage({ session }: EquipmentPageProps) {
           <tr
             key={item.id}
             style={{ cursor: 'pointer' }}
-            onClick={() => openDetails(item)}
+            onClick={() => {
+              openDetails(item);
+            }}
           >
             <td>{item.unit_number ?? '-'}</td>
             <td>{item.nickname ?? '-'}</td>
             <td>{item.category ?? '-'}</td>
             <td>{item.make ?? '-'}</td>
             <td>{item.model ?? '-'}</td>
-            <td>{item.location?.name ?? '-'}</td>
-            <td>{item.building?.name ?? '-'}</td>
+            <td>{item.farm?.name ?? '-'}</td>
+            <td>
+              {item.current_container?.name ??
+                item.home_container?.name ??
+                '-'}
+            </td>
           </tr>
         ))}
               </tbody>
@@ -422,9 +510,15 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 </div>
                 <div>
                   <strong>Location:</strong>{' '}
-                  {selectedEquipment.location?.name ? (
-                    <Link to={`/locations/${toSlug(selectedEquipment.location.name)}`}>
-                      {selectedEquipment.location.name}
+                  {selectedEquipment.farm?.name ? (
+                    <Link
+                      to={`/locations/${toSlug(
+                        selectedEquipment.farm.slug ??
+                          selectedEquipment.farm.name ??
+                          '',
+                      )}`}
+                    >
+                      {selectedEquipment.farm.name}
                     </Link>
                   ) : (
                     '-'
@@ -432,9 +526,17 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 </div>
                 <div>
                   <strong>Building:</strong>{' '}
-                  {selectedEquipment.building?.name ? (
-                    <Link to={`/buildings/${toSlug(selectedEquipment.building.name)}`}>
-                      {selectedEquipment.building.name}
+                  {selectedEquipment.current_container?.name ||
+                  selectedEquipment.home_container?.name ? (
+                    <Link
+                      to={`/buildings/${toSlug(
+                        selectedEquipment.current_container?.name ??
+                          selectedEquipment.home_container?.name ??
+                          '',
+                      )}`}
+                    >
+                      {selectedEquipment.current_container?.name ??
+                        selectedEquipment.home_container?.name}
                     </Link>
                   ) : (
                     '-'
@@ -476,38 +578,40 @@ function EquipmentPage({ session }: EquipmentPageProps) {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDetails(false);
-                        setEditingEquipment(selectedEquipment);
-                        setCategory(selectedEquipment.category ?? '');
-                        setMake(selectedEquipment.make ?? '');
-                        setModel(selectedEquipment.model ?? '');
-                        setNickname(selectedEquipment.nickname ?? '');
-                        setSerialNumber(selectedEquipment.serial_number ?? '');
-                        setYear(selectedEquipment.year ?? '');
-                        setUnitNumber(selectedEquipment.unit_number ?? '');
-                        setVinSn(selectedEquipment.vin_sn ?? '');
-                        setYearOfPurchase(selectedEquipment.year_of_purchase ?? '');
-                        setLicenseClass(selectedEquipment.license_class ?? '');
-                        setShowForm(true);
-                      }}
-                    >
-                      Edit equipment
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowDetails(false);
-                        navigate(`/maintenance/add?equipment_id=${selectedEquipment.id}`);
-                      }}
-                    >
-                      Edit logs
-                    </button>
-                  </>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {canManageEquipment && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowDetails(false);
+                setEditingEquipment(selectedEquipment);
+                setCategory(selectedEquipment.category ?? '');
+                setMake(selectedEquipment.make ?? '');
+                setModel(selectedEquipment.model ?? '');
+                setNickname(selectedEquipment.nickname ?? '');
+                setSerialNumber(selectedEquipment.serial_number ?? '');
+                setYear(selectedEquipment.year ?? '');
+                setUnitNumber(selectedEquipment.unit_number ?? '');
+                setVinSn(selectedEquipment.vin_sn ?? '');
+                setYearOfPurchase(selectedEquipment.year_of_purchase ?? '');
+                setLicenseClass(selectedEquipment.license_class ?? '');
+                setShowForm(true);
+              }}
+            >
+              Edit equipment
+            </button>
+          )}
+          {maintenanceEnabled && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowDetails(false);
+                navigate(`/maintenance/add?equipment_id=${selectedEquipment.id}`);
+              }}
+            >
+              Edit logs
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {

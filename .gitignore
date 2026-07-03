@@ -137,3 +137,10 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local temp files
+temp/
+
+# VS Code local workspace files
+farmkit_dev+org.code-workspace
+*.code-workspace

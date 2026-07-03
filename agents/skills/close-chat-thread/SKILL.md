@@ -28,7 +28,7 @@ Standardize thread closeout: capture decisions, tasks, context updates, and veri
 ### 4) Commit the thread changes
 - Check `git status` and confirm a non-`main` branch (per repo constraints).
 - Stage only thread-related files; if unrelated changes exist, ask whether to include or leave them.
-- Ask for a commit message if none is given; otherwise use a short, descriptive message referencing the thread topic.
+- Use a short, descriptive commit message referencing the thread topic.
 - Do not amend or squash unless explicitly requested.
 
 ## Closeout response

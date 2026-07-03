@@ -22,6 +22,7 @@
 - [ ] Naming and folder choices reduce confusion (not increase it).
 - [ ] Any new patterns are documented in `.agent/DECISIONS.md` if they affect future work.
 - [ ] Dead code / unused exports are avoided where easy.
+- [ ] Module-related UI gating uses `frontend/src/components/ModuleGate.tsx` (when applicable) to avoid copy/pasted checks.
 
 ## Validation
 - [ ] Minimal checks run (lint/test/build), or unverified items are listed with reasons.

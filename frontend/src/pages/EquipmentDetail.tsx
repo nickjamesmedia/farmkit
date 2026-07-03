@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
+import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
 import { toSlug } from '../utils/slug';
 
@@ -26,8 +27,9 @@ type Equipment = {
   oil_filter_number: string | null;
   fuel_filter_number: string | null;
   air_filter_number: string | null;
-  location?: { name: string | null; code: string | null } | null;
-  building?: { name: string | null; code: string | null } | null;
+  farm?: { name: string | null; slug: string | null } | null;
+  home_container?: { name: string | null; code: string | null } | null;
+  current_container?: { name: string | null; code: string | null } | null;
 };
 
 type MaintenanceLog = {
@@ -47,6 +49,11 @@ function EquipmentDetail({ session }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<Equipment>>({});
+  const navigate = useNavigate();
+  const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading, roleKey } = useNavData();
+  const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
+  const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const canManageEquipment = roleKey === 'admin' || roleKey === 'manager';
 
   const decoded = useMemo(() => decodeURIComponent(slug ?? ''), [slug]);
   const normalizedName = useMemo(
@@ -62,6 +69,21 @@ function EquipmentDetail({ session }: Props) {
       setError(null);
 
       let found: Equipment | null = null;
+      if (navLoading) return;
+      if (!activeFarmId) {
+        setError('No farm assigned to your profile.');
+        setLoading(false);
+        return;
+      }
+      if (!equipmentEnabled) {
+        setError('Equipment module is disabled for this farm.');
+        setLoading(false);
+        return;
+      }
+      const farmScope = dataScopeFarmIds.length ? dataScopeFarmIds : [activeFarmId];
+
+      const selectClause =
+        '*, farm:farm_id(name, slug), home_container:home_container_id(name, code), current_container:current_container_id(name, code)';
 
       // Broad candidate search: nickname variants + id match
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -75,11 +97,13 @@ function EquipmentDetail({ session }: Props) {
         orFilters.push(`id.eq.${decoded}`);
       }
 
-      const { data: candidates, error: candErr } = await supabase
+      let candidateQuery = supabase
         .from('equipment')
-        .select('*, location:location_id(name, code), building:building_id(name, code)')
+        .select(selectClause)
         .or(orFilters.join(','))
         .limit(30);
+      candidateQuery = candidateQuery.in('farm_id', farmScope);
+      const { data: candidates, error: candErr } = await candidateQuery;
       if (candErr) {
         setError(candErr.message);
         setLoading(false);
@@ -95,11 +119,12 @@ function EquipmentDetail({ session }: Props) {
 
       // Try by UUID id if still not found
       if (!found && uuidRegex.test(decoded)) {
-        const { data: byId } = await supabase
+        let byIdQuery = supabase
           .from('equipment')
-          .select('*, location:location_id(name, code), building:building_id(name, code)')
-          .eq('id', decoded)
-          .maybeSingle();
+          .select(selectClause)
+          .eq('id', decoded);
+        byIdQuery = byIdQuery.in('farm_id', farmScope);
+        const { data: byId } = await byIdQuery.maybeSingle();
         if (byId) {
           found = byId;
         }
@@ -107,10 +132,12 @@ function EquipmentDetail({ session }: Props) {
 
       // Final fallback: grab a wider set and match by computed slug
       if (!found) {
-        const { data: broad } = await supabase
+        let broadQuery = supabase
           .from('equipment')
-          .select('*, location:location_id(name, code), building:building_id(name, code)')
-        .limit(500);
+          .select(selectClause)
+          .limit(500);
+        broadQuery = broadQuery.in('farm_id', farmScope);
+        const { data: broad } = await broadQuery;
         if (broad && broad.length > 0) {
           found = broad.find((row) => toSlug(row.nickname) === targetSlug) ?? null;
         }
@@ -126,18 +153,23 @@ function EquipmentDetail({ session }: Props) {
       }
       setEquipment(found as Equipment);
 
-      const { data: logRows, error: logErr } = await supabase
-        .from('maintenance_logs')
-        .select('id, title, status, maintenance_date, logged_at, description')
-        .eq('equipment_id', found.id)
-        .order('maintenance_date', { ascending: false })
-        .order('logged_at', { ascending: false });
+      if (maintenanceEnabled) {
+        const { data: logRows, error: logErr } = await supabase
+          .from('maintenance_logs')
+          .select('id, title, status, maintenance_date, logged_at, description')
+          .eq('equipment_id', found.id)
+          .in('farm_id', farmScope)
+          .order('maintenance_date', { ascending: false })
+          .order('logged_at', { ascending: false });
 
-      if (logErr) {
-        setError(logErr.message);
-        setLogs([]);
+        if (logErr) {
+          setError(logErr.message);
+          setLogs([]);
+        } else {
+          setLogs(logRows ?? []);
+        }
       } else {
-        setLogs(logRows ?? []);
+        setLogs([]);
       }
       setLoading(false);
     };
@@ -145,7 +177,25 @@ function EquipmentDetail({ session }: Props) {
     return () => {
       active = false;
     };
-  }, [decoded]);
+  }, [decoded, activeFarmId, dataScopeFarmIds, equipmentEnabled, maintenanceEnabled, navLoading]);
+
+  const handleLogEdit = (log: MaintenanceLog) => {
+    navigate(`/maintenance/log/${log.id}`);
+  };
+
+  const handleLogDelete = async (log: MaintenanceLog) => {
+    const confirmed = window.confirm(`Delete "${log.title}"?`);
+    if (!confirmed) return;
+    const { error: deleteErr } = await supabase
+      .from('maintenance_logs')
+      .delete()
+      .eq('id', log.id);
+    if (deleteErr) {
+      window.alert(deleteErr.message);
+      return;
+    }
+    setLogs((prev) => prev.filter((row) => row.id !== log.id));
+  };
 
   if (loading) {
     return (
@@ -180,18 +230,22 @@ function EquipmentDetail({ session }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h1>{equipment.nickname ?? 'Equipment'}</h1>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(true);
-                  setForm(equipment);
-                }}
-              >
-                Edit Equipment
-              </button>
-              <Link className="nav-btn" to={`/maintenance/add?equipment_id=${equipment.id}`}>
-                Log Maintenance
-              </Link>
+              {canManageEquipment && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(true);
+                    setForm(equipment);
+                  }}
+                >
+                  Edit Equipment
+                </button>
+              )}
+              {maintenanceEnabled && (
+                <Link className="nav-btn" to={`/maintenance/add?equipment_id=${equipment.id}`}>
+                  Log Maintenance
+                </Link>
+              )}
               <Link className="nav-btn" to="/equipment">
                 Back to list
               </Link>
@@ -213,19 +267,33 @@ function EquipmentDetail({ session }: Props) {
             <div><strong>Air filter:</strong> {equipment.air_filter_number ?? '-'}</div>
             <div>
               <strong>Location:</strong>{' '}
-              {equipment.location?.name ? (
-                <Link to={`/locations/${toSlug(equipment.location.name)}`}>
-                  {equipment.location.name}
+              {equipment.farm?.name ? (
+                <Link
+                  to={`/locations/${toSlug(
+                    equipment.farm.slug ?? equipment.farm.name ?? '',
+                  )}`}
+                >
+                  {equipment.farm.name}
                 </Link>
               ) : (
                 '-'
               )}
             </div>
             <div>
-              <strong>Building:</strong>{' '}
-              {equipment.building?.name ? (
-                <Link to={`/buildings/${toSlug(equipment.building.name)}`}>
-                  {equipment.building.name}
+              <strong>Home building:</strong>{' '}
+              {equipment.home_container?.name ? (
+                <Link to={`/buildings/${toSlug(equipment.home_container.name)}`}>
+                  {equipment.home_container.name}
+                </Link>
+              ) : (
+                '-'
+              )}
+            </div>
+            <div>
+              <strong>Current building:</strong>{' '}
+              {equipment.current_container?.name ? (
+                <Link to={`/buildings/${toSlug(equipment.current_container.name)}`}>
+                  {equipment.current_container.name}
                 </Link>
               ) : (
                 '-'
@@ -245,6 +313,7 @@ function EquipmentDetail({ session }: Props) {
                   <th>Title</th>
                   <th>Status</th>
                   <th>Logged at</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -254,6 +323,16 @@ function EquipmentDetail({ session }: Props) {
                     <td>{log.title}</td>
                     <td>{log.status ?? '-'}</td>
                     <td>{log.logged_at}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button type="button" onClick={() => handleLogEdit(log)}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => handleLogDelete(log)}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

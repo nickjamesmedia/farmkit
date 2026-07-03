@@ -1,165 +1,213 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
+import { fetchActiveFarmContext } from '../lib/farmContext';
 import Nav from '../components/Nav';
 
 type Props = {
   session: Session;
 };
 
-type User = {
+type Role = {
   id: string;
-  auth_user_id: string;
+  key: string;
   name: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string;
-  role: string;
-  created_at: string;
-  last_modified_at: string | null;
-  last_modified_by_id: string | null;
 };
 
-type UserForm = Partial<User> & {
-  email: string;
-  role: string;
+type Membership = {
+  id: string;
+  farm_id: string;
+  auth_user_id: string;
+  role_id: string;
+  status: 'active' | 'invited' | 'disabled';
+  account_mode: 'personal' | 'shared';
+  person_id: string | null;
+  display_name_override: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+};
+
+type Profile = {
+  auth_user_id: string;
+  display_name: string | null;
+};
+
+type MembershipForm = {
+  id?: string;
+  auth_user_id: string;
+  role_id: string;
+  status: 'active' | 'invited' | 'disabled';
+  account_mode: 'personal' | 'shared';
+  display_name_override: string;
 };
 
 function ManageUsers({ session }: Props) {
-  const [users, setUsers] = useState<User[]>([]);
-  const [, setSelectedUser] = useState<User | null>(null);
-  const [form, setForm] = useState<UserForm>({
-    email: '',
-    role: 'user',
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [profileMap, setProfileMap] = useState<Record<string, string>>({});
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
+  const [form, setForm] = useState<MembershipForm>({
+    auth_user_id: '',
+    role_id: '',
+    status: 'active',
+    account_mode: 'personal',
+    display_name_override: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [inviting, setInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
-  const displayName = (u: User) =>
-    [u.first_name, u.last_name].filter(Boolean).join(' ') || u.name || u.email;
-
-  const modifierMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    users.forEach((u) => {
-      map[u.id] = displayName(u);
+  const roleMap = useMemo(() => {
+    const map: Record<string, Role> = {};
+    roles.forEach((role) => {
+      map[role.id] = role;
     });
     return map;
-  }, [users]);
+  }, [roles]);
+
+  const defaultRoleId = useMemo(() => {
+    return roles.find((role) => role.key === 'user')?.id ?? roles[0]?.id ?? '';
+  }, [roles]);
+
+  const displayName = (membership: Membership) =>
+    membership.display_name_override ||
+    profileMap[membership.auth_user_id] ||
+    membership.auth_user_id;
 
   const resetForm = () => {
     setForm({
-      email: '',
-      role: 'user',
       auth_user_id: '',
-      first_name: '',
-      last_name: '',
-      name: '',
-      id: undefined,
+      role_id: defaultRoleId,
+      status: 'active',
+      account_mode: 'personal',
+      display_name_override: '',
     });
-    setSelectedUser(null);
   };
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
-    const { data, error: usersErr } = await supabase
-      .from('app_users')
-      .select(
-        'id, auth_user_id, name, first_name, last_name, email, role, created_at, last_modified_at, last_modified_by_id',
-      )
-      .order('created_at', { ascending: true });
-    if (usersErr) {
-      setError(usersErr.message);
-      setUsers([]);
+    setStatus('');
+
+    const { farmId } = await fetchActiveFarmContext(session.user.id);
+    if (!farmId) {
+      setError('No farm assigned to your profile.');
       setLoading(false);
       return;
     }
-    setUsers(data ?? []);
+    setActiveFarmId(farmId);
+
+    const [{ data: rolesData, error: rolesErr }, { data: membershipData, error: membersErr }] =
+      await Promise.all([
+        supabase.from('roles').select('id, key, name').order('name'),
+        supabase
+          .from('farm_memberships')
+          .select(
+            'id, farm_id, auth_user_id, role_id, status, account_mode, person_id, display_name_override, created_at, last_seen_at',
+          )
+          .eq('farm_id', farmId)
+          .order('created_at', { ascending: true }),
+      ]);
+
+    if (rolesErr) {
+      setError(rolesErr.message);
+      setLoading(false);
+      return;
+    }
+    if (membersErr) {
+      setError(membersErr.message);
+      setLoading(false);
+      return;
+    }
+
+    const authIds = Array.from(
+      new Set((membershipData ?? []).map((row) => row.auth_user_id)),
+    );
+    const { data: profilesData } = authIds.length
+      ? await supabase
+          .from('user_profiles')
+          .select('auth_user_id, display_name')
+          .in('auth_user_id', authIds)
+      : { data: [] as Profile[] };
+
+    const map: Record<string, string> = {};
+    (profilesData ?? []).forEach((profile) => {
+      if (profile.display_name) {
+        map[profile.auth_user_id] = profile.display_name;
+      }
+    });
+
+    const nextDefaultRoleId =
+      rolesData?.find((role) => role.key === 'user')?.id ??
+      rolesData?.[0]?.id ??
+      '';
+    setRoles(rolesData ?? []);
+    setMemberships((membershipData as Membership[]) ?? []);
+    setProfileMap(map);
+    setForm((prev) => ({
+      ...prev,
+      role_id: prev.role_id || nextDefaultRoleId,
+    }));
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [session.user.id]);
 
   const handleSave = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!activeFarmId) {
+      setError('No farm assigned to your profile.');
+      return;
+    }
+    if (!form.auth_user_id.trim()) {
+      setError('Auth user ID is required.');
+      return;
+    }
+    if (!form.role_id) {
+      setError('Select a role.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setStatus('');
 
-    const name =
-      (form.name && form.name.trim()) ||
-      [form.first_name, form.last_name].filter(Boolean).join(' ').trim() ||
-      form.email;
-
     const payload = {
       id: form.id,
-      auth_user_id: form.auth_user_id,
-      email: form.email,
-      role: form.role ?? 'user',
-      first_name: form.first_name || null,
-      last_name: form.last_name || null,
-      name,
-      last_modified_at: new Date().toISOString(),
-      last_modified_by_id: users.find((u) => u.auth_user_id === session.user.id)
-        ?.id,
+      farm_id: activeFarmId,
+      auth_user_id: form.auth_user_id.trim(),
+      role_id: form.role_id,
+      status: form.status,
+      account_mode: form.account_mode,
+      display_name_override: form.display_name_override || null,
     };
 
-    const { error: upsertError } = await supabase
-      .from('app_users')
-      .upsert(payload, { onConflict: 'id' });
-    if (upsertError) {
-      setError(upsertError.message);
+    const result = form.id
+      ? await supabase.from('farm_memberships').update(payload).eq('id', form.id)
+      : await supabase
+          .from('farm_memberships')
+          .insert({ ...payload, created_by_auth_user_id: session.user.id });
+
+    if (result.error) {
+      setError(result.error.message);
       setSaving(false);
       return;
     }
+
     setStatus('User saved.');
     setSaving(false);
     resetForm();
     loadData();
   };
 
-  const handleInvite = async (user: User) => {
-    const endpoint =
-      import.meta.env.VITE_INVITE_ENDPOINT || '/api/send-invite';
-    setInviting(true);
-    setError(null);
-    setStatus('');
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user.email,
-          role: user.role,
-          first_name: user.first_name,
-          last_name: user.last_name,
-          name: user.name,
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || response.statusText);
-      }
-      setStatus(`Invite email sent to ${user.email}.`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Invite failed';
-      setError(message);
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleDelete = async (user: User) => {
+  const handleDelete = async (membership: Membership) => {
     const confirmed = window.confirm(
-      `Remove user ${displayName(user)}? Their linked records will stay but user access is removed.`,
+      `Remove ${displayName(membership)} from this farm?`,
     );
     if (!confirmed) return;
     setDeleting(true);
@@ -167,24 +215,28 @@ function ManageUsers({ session }: Props) {
     setStatus('');
 
     const { error: deleteError } = await supabase
-      .from('app_users')
+      .from('farm_memberships')
       .delete()
-      .eq('id', user.id);
+      .eq('id', membership.id);
     if (deleteError) {
       setError(deleteError.message);
       setDeleting(false);
       return;
     }
-    setStatus('User deleted.');
+    setStatus('User removed.');
     setDeleting(false);
     resetForm();
     loadData();
   };
 
-  const openEdit = (user: User) => {
-    setSelectedUser(user);
+  const openEdit = (membership: Membership) => {
     setForm({
-      ...user,
+      id: membership.id,
+      auth_user_id: membership.auth_user_id,
+      role_id: membership.role_id,
+      status: membership.status,
+      account_mode: membership.account_mode,
+      display_name_override: membership.display_name_override ?? '',
     });
     setStatus('');
     setError(null);
@@ -204,62 +256,71 @@ function ManageUsers({ session }: Props) {
               <h2>Add / Edit User</h2>
               <form className="stack" onSubmit={handleSave}>
                 <label className="stack">
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                  />
-                </label>
-                <label className="stack">
                   <span>Auth user ID</span>
                   <input
                     type="text"
-                    value={form.auth_user_id ?? ''}
+                    value={form.auth_user_id}
                     onChange={(e) =>
                       setForm({ ...form, auth_user_id: e.target.value })
                     }
                     placeholder="Supabase auth user id"
+                    required
                   />
                 </label>
                 <label className="stack">
-                  <span>First name</span>
+                  <span>Display name override</span>
                   <input
                     type="text"
-                    value={form.first_name ?? ''}
+                    value={form.display_name_override}
                     onChange={(e) =>
-                      setForm({ ...form, first_name: e.target.value })
+                      setForm({ ...form, display_name_override: e.target.value })
                     }
-                  />
-                </label>
-                <label className="stack">
-                  <span>Last name</span>
-                  <input
-                    type="text"
-                    value={form.last_name ?? ''}
-                    onChange={(e) =>
-                      setForm({ ...form, last_name: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="stack">
-                  <span>Display name</span>
-                  <input
-                    type="text"
-                    value={form.name ?? ''}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Optional override"
+                    placeholder="Optional display name override"
                   />
                 </label>
                 <label className="stack">
                   <span>Role</span>
                   <select
-                    value={form.role ?? 'user'}
-                    onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    value={form.role_id}
+                    onChange={(e) => setForm({ ...form, role_id: e.target.value })}
                   >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
+                    <option value="">Select a role</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="stack">
+                  <span>Account mode</span>
+                  <select
+                    value={form.account_mode}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        account_mode: e.target.value as MembershipForm['account_mode'],
+                      })
+                    }
+                  >
+                    <option value="personal">Personal</option>
+                    <option value="shared">Shared</option>
+                  </select>
+                </label>
+                <label className="stack">
+                  <span>Status</span>
+                  <select
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        status: e.target.value as MembershipForm['status'],
+                      })
+                    }
+                  >
+                    <option value="active">Active</option>
+                    <option value="invited">Invited</option>
+                    <option value="disabled">Disabled</option>
                   </select>
                 </label>
 
@@ -286,44 +347,38 @@ function ManageUsers({ session }: Props) {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Email</th>
+                      <th>Auth user ID</th>
                       <th>Role</th>
-                      <th>Last modified</th>
-                      <th>Modified by</th>
+                      <th>Account mode</th>
+                      <th>Status</th>
+                      <th>Last seen</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id}>
-                        <td>{displayName(u)}</td>
-                        <td>{u.email}</td>
-                        <td>{u.role}</td>
-                        <td>{u.last_modified_at ? new Date(u.last_modified_at).toLocaleString() : '—'}</td>
+                    {memberships.map((membership) => (
+                      <tr key={membership.id}>
+                        <td>{displayName(membership)}</td>
+                        <td>{membership.auth_user_id}</td>
+                        <td>{roleMap[membership.role_id]?.name ?? '-'}</td>
+                        <td>{membership.account_mode}</td>
+                        <td>{membership.status}</td>
                         <td>
-                          {u.last_modified_by_id
-                            ? modifierMap[u.last_modified_by_id] || '—'
-                            : '—'}
+                          {membership.last_seen_at
+                            ? new Date(membership.last_seen_at).toLocaleString()
+                            : '-'}
                         </td>
                         <td style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button type="button" onClick={() => openEdit(u)}>
+                          <button type="button" onClick={() => openEdit(membership)}>
                             Edit
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(u)}
+                            onClick={() => handleDelete(membership)}
                             disabled={deleting}
                             style={{ background: '#fdd', color: '#900' }}
                           >
                             Delete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleInvite(u)}
-                            disabled={inviting}
-                            style={{ background: '#eef', color: '#114' }}
-                          >
-                            {inviting ? 'Sending...' : 'Send login email'}
                           </button>
                         </td>
                       </tr>

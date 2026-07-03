@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
+import { fetchActiveFarmContext } from '../lib/farmContext';
+import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
 
 type Props = {
@@ -10,8 +12,11 @@ type Props = {
 
 type MaintenanceLog = {
   id: string;
+  farm_id: string;
   equipment_id: string;
-  created_by_id: string | null;
+  container_id: string | null;
+  created_by_auth_user_id: string | null;
+  entered_by_person_id: string | null;
   title: string;
   description: string | null;
   status: string | null;
@@ -21,8 +26,10 @@ type MaintenanceLog = {
   maintenance_date: string | null;
 };
 
-type MaintenanceLogInsert = Partial<Omit<MaintenanceLog, 'id'>> &
-  Pick<MaintenanceLog, 'equipment_id' | 'title' | 'maintenance_date'>;
+type MaintenanceLogInsert = Partial<
+  Omit<MaintenanceLog, 'id' | 'farm_id' | 'equipment_id' | 'title'>
+> &
+  Pick<MaintenanceLog, 'farm_id' | 'equipment_id' | 'title' | 'maintenance_date'>;
 
 type EquipmentOption = {
   id: string;
@@ -31,23 +38,39 @@ type EquipmentOption = {
   category: string | null;
 };
 
+type PersonOption = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  display_name: string | null;
+};
+
 function AddMaintenanceLog({ session }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [equipmentOptions, setEquipmentOptions] = useState<EquipmentOption[]>(
     [],
   );
-  const [createdById, setCreatedById] = useState<string | null>(null);
+  const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
+  const [accountMode, setAccountMode] = useState<'personal' | 'shared'>(
+    'personal',
+  );
+  const [enteredByPersonId, setEnteredByPersonId] = useState('');
+  const [peopleOptions, setPeopleOptions] = useState<PersonOption[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
   const [maintenanceDate, setMaintenanceDate] = useState(
     () => new Date().toISOString().slice(0, 10),
   );
+  const [logStatus, setLogStatus] = useState<'open' | 'closed'>('open');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { moduleEnabledByKey, loading: navLoading } = useNavData();
+  const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
 
   const equipmentLabel = useMemo(() => {
     return equipmentOptions.reduce<Record<string, string>>((acc, item) => {
@@ -93,50 +116,120 @@ function AddMaintenanceLog({ session }: Props) {
   }, [equipmentOptions, categoryFilter, searchFilter]);
 
   useEffect(() => {
-    const fetchEquipment = async () => {
-      const { data, error: err } = await supabase
+    let active = true;
+    const load = async () => {
+      setError(null);
+      if (navLoading) return;
+      if (!maintenanceEnabled) {
+        setEquipmentOptions([]);
+        setPeopleOptions([]);
+        setActiveFarmId(null);
+        setError('Maintenance module is disabled for this farm.');
+        return;
+      }
+      if (!equipmentEnabled) {
+        setEquipmentOptions([]);
+        setPeopleOptions([]);
+        setActiveFarmId(null);
+        setError('Equipment module is disabled for this farm.');
+        return;
+      }
+      const { farmId, membership, profile } = await fetchActiveFarmContext(
+        session.user.id,
+      );
+      if (!active) return;
+      setActiveFarmId(farmId);
+      setAccountMode(membership?.account_mode ?? 'personal');
+      const defaultPersonId = membership?.person_id ?? '';
+      setEnteredByPersonId(defaultPersonId);
+
+      if (!farmId) {
+        setError('No farm assigned to your profile.');
+        setEquipmentOptions([]);
+        return;
+      }
+
+      const { data: equipmentData, error: err } = await supabase
         .from('equipment')
         .select('id, nickname, unit_number, category')
+        .eq('farm_id', farmId)
         .order('nickname', { ascending: true });
+      if (!active) return;
       if (err) {
         setError(err.message);
         setEquipmentOptions([]);
       } else {
-        setEquipmentOptions(data ?? []);
+        setEquipmentOptions(equipmentData ?? []);
       }
-    };
 
-    const fetchUser = async () => {
-      const { data, error: userErr } = await supabase
-        .from('app_users')
-        .select('id')
-        .eq('auth_user_id', session.user.id)
-        .maybeSingle();
-      if (userErr) {
-        setError(userErr.message);
+      const { data: peopleData, error: peopleErr } = await supabase
+        .from('people')
+        .select('id, first_name, last_name, display_name')
+        .eq('farm_id', farmId)
+        .eq('active', true)
+        .order('first_name', { ascending: true });
+      if (!active) return;
+      if (peopleErr) {
+        setError(peopleErr.message);
+        setPeopleOptions([]);
       } else {
-        setCreatedById(data?.id ?? null);
+        setPeopleOptions(peopleData ?? []);
+        if (
+          membership?.account_mode !== 'shared' &&
+          !defaultPersonId &&
+          profile?.display_name
+        ) {
+          const profileName = profile.display_name.trim().toLowerCase();
+          const match = (peopleData ?? []).find((person) => {
+            const display = person.display_name?.trim().toLowerCase() ?? '';
+            const fullName = [person.first_name, person.last_name]
+              .filter(Boolean)
+              .join(' ')
+              .trim()
+              .toLowerCase();
+            return display === profileName || fullName === profileName;
+          });
+          if (match) {
+            setEnteredByPersonId(match.id);
+          }
+        }
       }
     };
 
-    fetchEquipment();
-    fetchUser();
+    load();
 
     const params = new URLSearchParams(location.search);
     const preselect = params.get('equipment_id');
     if (preselect) {
       setEquipmentId(preselect);
     }
-  }, [session.user.id, location.search]);
+    return () => {
+      active = false;
+    };
+  }, [session.user.id, location.search, maintenanceEnabled, equipmentEnabled, navLoading]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!maintenanceEnabled) {
+      setError('Maintenance module is disabled for this farm.');
+      return;
+    }
+    if (!equipmentEnabled) {
+      setError('Equipment module is disabled for this farm.');
+      return;
+    }
     if (!equipmentId) {
       setError('Select equipment for this maintenance log.');
       return;
     }
-    if (!createdById) {
-      setError('Could not resolve your profile to set created_by_id.');
+    if (!activeFarmId) {
+      setError('No farm assigned to your profile.');
+      return;
+    }
+
+    const personId = enteredByPersonId || null;
+    if (accountMode === 'shared' && !personId) {
+      setError('Select the person who completed this work.');
       return;
     }
 
@@ -146,10 +239,13 @@ function AddMaintenanceLog({ session }: Props) {
     const { error: insertError } = await supabase
       .from('maintenance_logs')
       .insert<MaintenanceLogInsert>({
+        farm_id: activeFarmId,
         equipment_id: equipmentId,
-        created_by_id: createdById,
+        created_by_auth_user_id: session.user.id,
+        entered_by_person_id: personId,
         title,
         description: description || null,
+        status: logStatus,
         maintenance_date: maintenanceDate || null,
         logged_at: new Date().toISOString(),
       });
@@ -160,7 +256,7 @@ function AddMaintenanceLog({ session }: Props) {
       return;
     }
 
-    navigate('/app');
+    navigate('/dashboard');
   };
 
   return (
@@ -177,6 +273,16 @@ function AddMaintenanceLog({ session }: Props) {
                 value={maintenanceDate}
                 onChange={(e) => setMaintenanceDate(e.target.value)}
               />
+            </label>
+            <label className="stack">
+              <span>Status</span>
+              <select
+                value={logStatus}
+                onChange={(e) => setLogStatus(e.target.value as 'open' | 'closed')}
+              >
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
             </label>
 
             <label className="stack">
@@ -263,6 +369,29 @@ function AddMaintenanceLog({ session }: Props) {
                     {equipmentLabel[item.id] ?? 'Unknown equipment'}
                   </option>
                 ))}
+              </select>
+            </label>
+            <label className="stack">
+              <span>Person who did the work</span>
+              <select
+                value={enteredByPersonId}
+                onChange={(e) => setEnteredByPersonId(e.target.value)}
+                required={accountMode === 'shared'}
+              >
+                <option value="">Select a person</option>
+                {peopleOptions.map((person) => {
+                  const label =
+                    person.display_name ||
+                    [person.first_name, person.last_name]
+                      .filter(Boolean)
+                      .join(' ') ||
+                    'Unnamed';
+                  return (
+                    <option key={person.id} value={person.id}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             </label>
 

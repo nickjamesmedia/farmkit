@@ -16,7 +16,7 @@ Prefer small, reviewable changes over “vibe-coded” rewrites.
 ## Workflow (deliberate, repeatable)
 
 1) **Read**  
-   Open `AGENTS.md`, then `.agent/CONTEXT.md` and `.agent/CONSTRAINTS.md` (or `.agents/` if that is the folder used in this repo) before acting.
+   Open `AGENTS.md`, then `.agent/CONTEXT.md` and `.agent/CONSTRAINTS.md` before acting.
 
 2) **Plan**  
    If the task is non-trivial, ambiguous, risky, or touches multiple files, write or update a plan in `.agent/PLANS.md`.  
@@ -50,6 +50,7 @@ Prefer small, reviewable changes over “vibe-coded” rewrites.
 ---
 
 ## Versioning (SemVer)
+
 - Use `MAJOR.MINOR.PATCH` (SemVer) for releases.
 - Current prototype epoch is **v0.0.7**; next alpha patch is **v0.0.8** after current tasks complete.
 - Pre-1.0 may use `-alpha.N` / `-beta.N` tags when needed.

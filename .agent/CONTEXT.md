@@ -183,6 +183,21 @@ These items may be interesting later, but are explicitly **out of scope** unless
 ## Notes (append-only)
 > Add new notes at the top of this section. Do not delete old notes.
 
+- 2026-02-01: Clarified module model: modules are configured at the parent farm and inherited by child farms; new modules are disabled by default when introduced for existing farms; modules can be nested (e.g., Containers -> Buildings, Storage & Bins). Disabling a module should hide its data (via RLS) and related UI elements without breaking other modules.
+
+- 2026-02-01: Clarified farm hierarchy: two levels only for now (parent farm + child farms; no child-of-child). ERP (emergency response planning) info is intended to be broadly visible to users for any farm location they work at, including parent ERP info when a user is only a member of a child farm.
+
+- 2026-02-01: Post-v0.1 beta (v0.2 direction): add Fields module (fields nested under Locations per farm), add Livestock module, expand Buildings surfacing under Locations for nested farms, and add Storage & Bins module built on the Containers table family.
+
+- 2026-01-18: Initial RLS policies drafted and reported working in the dev environment.
+
+- 2026-01-18: Local repo path is now `H:\_NJM\Clients\farmkit\farmkit_app`, tied to `https://github.com/nickjamesmedia/farmkit`; prior local path `G:\Dev\farmkit` is being removed.
+
+
+- 2026-01-13: Dev server: run `npm run dev` from `frontend/`; app is served at `http://localhost:5173` (corrected date).
+
+- 2026-01-12: Dev server: run `npm run dev` from `frontend/`; app is served at `http://localhost:5173`.
+
 - 2026-01-11: Added local skill `archive-plans` under `agents/skills/` to standardize plan archiving.
 
 - 2026-01-03: Bumped current alpha to v0.0.8 as the post-prototype clean start.

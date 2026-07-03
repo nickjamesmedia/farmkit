@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, Link } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import './App.css';
 import { supabase } from './lib/supabaseClient';
+import { NavDataProvider, useNavData } from './lib/navDataContext';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import Equipment from './pages/Equipment';
 import AddMaintenanceLog from './pages/AddMaintenanceLog';
 import Account from './pages/Account';
 import FarmSetup from './pages/FarmSetup';
+import FarmInfo from './pages/FarmInfo';
 import ManageUsers from './pages/ManageUsers';
 import SearchPage from './pages/Search';
+import Maintenance from './pages/Maintenance';
+import MaintenanceLogDetail from './pages/MaintenanceLogDetail';
 import EquipmentDetail from './pages/EquipmentDetail';
 import Locations from './pages/Locations';
 import LocationDetail from './pages/LocationDetail';
@@ -18,6 +22,7 @@ import Buildings from './pages/Buildings';
 import BuildingDetail from './pages/BuildingDetail';
 import AdminTools from './pages/AdminTools';
 import AdminActivity from './pages/AdminActivity';
+import RlsAudit from './pages/RlsAudit';
 
 const APP_VERSION = '0.0.8';
 
@@ -41,6 +46,31 @@ function RequireAuth({
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
+}
+
+function RequireRole({
+  allowed,
+  children,
+}: {
+  allowed: Array<'admin' | 'manager' | 'user'>;
+  children: React.ReactNode;
+}) {
+  const { loading, roleKey } = useNavData();
+  if (loading) {
+    return <div className="app">Loading...</div>;
+  }
+  if (!roleKey || !allowed.includes(roleKey)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
+function VersionBadge() {
+  return (
+    <Link className="version-badge" to="/dev/rls">
+      farmkit v{APP_VERSION} {versionStage(APP_VERSION)}
+    </Link>
+  );
 }
 
 function App() {
@@ -76,130 +106,173 @@ function App() {
   return (
     <>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login session={session} />} />
-          <Route
-            path="/app"
-            element={
-              <RequireAuth session={session}>
-                <Home session={session as Session} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/equipment"
-            element={
-              <RequireAuth session={session}>
-                {/* session is guaranteed non-null here */}
-                <Equipment session={session as Session} />
-              </RequireAuth>
-            }
-        />
-        <Route
-          path="/equipment/:slug"
-          element={
-            <RequireAuth session={session}>
-              <EquipmentDetail session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/locations"
-          element={
-            <RequireAuth session={session}>
-              <Locations session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/locations/:slug"
-          element={
-            <RequireAuth session={session}>
-              <LocationDetail session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/buildings"
-          element={
-            <RequireAuth session={session}>
-              <Buildings session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/buildings/:slug"
-          element={
-            <RequireAuth session={session}>
-              <BuildingDetail session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/maintenance/add"
-          element={
-            <RequireAuth session={session}>
-              <AddMaintenanceLog session={session as Session} />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/account"
-            element={
-              <RequireAuth session={session}>
-                <Account session={session as Session} />
-              </RequireAuth>
-            }
-          />
+        <NavDataProvider session={session}>
+          <Routes>
+            <Route path="/login" element={<Login session={session} />} />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth session={session}>
+                  <Home session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route path="/app" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/equipment"
+              element={
+                <RequireAuth session={session}>
+                  {/* session is guaranteed non-null here */}
+                  <Equipment session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/equipment/:slug"
+              element={
+                <RequireAuth session={session}>
+                  <EquipmentDetail session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/locations"
+              element={
+                <RequireAuth session={session}>
+                  <Locations session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/locations/:slug"
+              element={
+                <RequireAuth session={session}>
+                  <LocationDetail session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/buildings"
+              element={
+                <RequireAuth session={session}>
+                  <Buildings session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/buildings/:slug"
+              element={
+                <RequireAuth session={session}>
+                  <BuildingDetail session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/maintenance"
+              element={
+                <RequireAuth session={session}>
+                  <Maintenance session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/maintenance/log/:id"
+              element={
+                <RequireAuth session={session}>
+                  <MaintenanceLogDetail session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/maintenance/add"
+              element={
+                <RequireAuth session={session}>
+                  <AddMaintenanceLog session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <RequireAuth session={session}>
+                  <Account session={session as Session} />
+                </RequireAuth>
+              }
+            />
           <Route
             path="/farm"
             element={
               <RequireAuth session={session}>
-                <FarmSetup session={session as Session} />
+                <FarmInfo session={session as Session} />
               </RequireAuth>
             }
           />
-        <Route
-          path="/users"
-          element={
-            <RequireAuth session={session}>
-              <ManageUsers session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <RequireAuth session={session}>
-              <AdminTools session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/admin/activity"
-          element={
-            <RequireAuth session={session}>
-              <AdminActivity session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/search"
-          element={
-            <RequireAuth session={session}>
-              <SearchPage session={session as Session} />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="*"
-          element={<Navigate to={session ? '/app' : '/login'} replace />}
-        />
-        </Routes>
+            <Route
+              path="/admin/farm"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin']}>
+                    <FarmSetup session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin']}>
+                    <ManageUsers session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin', 'manager']}>
+                    <AdminTools session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin/activity"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin', 'manager']}>
+                    <AdminActivity session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/dev/rls"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin', 'manager']}>
+                    <RlsAudit session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <RequireAuth session={session}>
+                  <SearchPage session={session as Session} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="*"
+              element={<Navigate to={session ? '/dashboard' : '/login'} replace />}
+            />
+          </Routes>
+          <VersionBadge />
+        </NavDataProvider>
       </BrowserRouter>
-      <div className="version-badge">
-        Farm Kit v{APP_VERSION} {versionStage(APP_VERSION)}
-      </div>
     </>
   );
 }
