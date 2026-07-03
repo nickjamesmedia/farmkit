@@ -55,9 +55,8 @@ function LocationDetail({ session }: Props) {
   const [row, setRow] = useState<Location | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { moduleEnabledByKey, roleKey } = useNavData();
+  const { moduleEnabledByKey } = useNavData();
   const erpEnabled = moduleEnabledByKey.erp ?? true;
-  const isAdmin = roleKey === 'admin';
 
   const decoded = useMemo(() => decodeURIComponent(slug ?? ''), [slug]);
   const targetSlug = useMemo(() => toSlug(decoded), [decoded]);
@@ -116,16 +115,6 @@ function LocationDetail({ session }: Props) {
               {row.name} {row.slug ? `(${row.slug})` : ''}
             </h1>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <button type="button" onClick={() => alert('Edit location (admin only)')}>
-                  Edit
-                </button>
-              )}
-              {isAdmin && (
-                <button type="button" onClick={() => alert('Delete location (admin only)')}>
-                  Delete
-                </button>
-              )}
               <Link className="nav-btn" to="/locations">
                 Back to Locations
               </Link>

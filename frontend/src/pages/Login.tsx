@@ -39,7 +39,7 @@ function Login({ session }: Props) {
   return (
     <div className="app">
       <div className="card">
-        <h1>Supabase Login</h1>
+        <h1>Farmkit</h1>
         <form onSubmit={handleLogin} className="stack">
           <label className="stack">
             <span>Email</span>

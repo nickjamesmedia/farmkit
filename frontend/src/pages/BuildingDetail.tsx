@@ -39,12 +39,10 @@ function BuildingDetail({ session }: Props) {
   const [row, setRow] = useState<Building | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading, roleKey } = useNavData();
+  const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading } = useNavData();
   const buildingsEnabled =
     (moduleEnabledByKey.containers ?? true) &&
     (moduleEnabledByKey.containers_buildings ?? true);
-  const canManage = roleKey === 'admin' || roleKey === 'manager';
-  const isAdmin = roleKey === 'admin';
 
   const decoded = useMemo(() => decodeURIComponent(slug ?? ''), [slug]);
   const targetSlug = useMemo(() => toSlug(decoded), [decoded]);
@@ -117,16 +115,6 @@ function BuildingDetail({ session }: Props) {
                {row.name} {row.code ? `(${row.code})` : ''}
              </h1>
              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {canManage && (
-                <button type="button" onClick={() => alert('Edit building')}>
-                  Edit
-                </button>
-              )}
-              {isAdmin && (
-                <button type="button" onClick={() => alert('Delete building')}>
-                  Delete
-                </button>
-              )}
               <Link className="nav-btn" to="/buildings">
                 Back to Buildings
               </Link>

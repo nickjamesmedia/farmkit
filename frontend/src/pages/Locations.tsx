@@ -51,9 +51,8 @@ function Locations({ session }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [quickview, setQuickview] = useState<Location | null>(null);
   const navigate = useNavigate();
-  const { moduleEnabledByKey, roleKey } = useNavData();
+  const { moduleEnabledByKey } = useNavData();
   const erpEnabled = moduleEnabledByKey.erp ?? true;
-  const isAdmin = roleKey === 'admin';
 
   const groupedRows = (() => {
     const byId = new Map(rows.map((row) => [row.id, row]));
@@ -220,16 +219,6 @@ function Locations({ session }: Props) {
             );
           })()}
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-              {isAdmin && (
-                <button type="button" onClick={() => alert('Edit location (admin only)')}>
-                  Edit
-                </button>
-              )}
-              {isAdmin && (
-                <button type="button" onClick={() => alert('Delete location (admin only)')}>
-                  Delete
-                </button>
-              )}
                 <button
                   type="button"
                   onClick={() => {

@@ -144,3 +144,6 @@ temp/
 # VS Code local workspace files
 farmkit_dev+org.code-workspace
 *.code-workspace
+
+# Supabase DB cluster backups (never commit; may contain customer data)
+supabase/archive/*.backup.gz
