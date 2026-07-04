@@ -50,9 +50,17 @@ function Locations({ session }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quickview, setQuickview] = useState<Location | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const [addSaving, setAddSaving] = useState(false);
   const navigate = useNavigate();
-  const { moduleEnabledByKey } = useNavData();
+  const { moduleEnabledByKey, roleKey } = useNavData();
   const erpEnabled = moduleEnabledByKey.erp ?? true;
+  const isAdmin = roleKey === 'admin';
+
+  // the primary (top-level) farm is the only valid parent for a new location
+  const primaryFarm = rows.find((row) => !row.parent_farm_id) ?? null;
 
   const groupedRows = (() => {
     const byId = new Map(rows.map((row) => [row.id, row]));
@@ -84,31 +92,52 @@ function Locations({ session }: Props) {
     return flattened;
   })();
 
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      setLoading(true);
+  const loadLocations = async () => {
+    const { data, error: err } = await supabase
+      .from('farms')
+      .select(
+        'id, name, slug, parent_farm_id, status, farm_details:farm_details(address_line1, address_line2, city, province, postal_code, country, notes), farm_erp:farm_erp(nearest_town, nearest_hospital_name, nearest_hospital_distance_km, emergency_instructions, has_fuel_storage, has_chemical_storage)',
+      )
+      .order('name', { ascending: true });
+    if (err) {
+      setError(err.message);
+      setRows([]);
+    } else {
       setError(null);
-      const { data, error: err } = await supabase
-        .from('farms')
-        .select(
-          'id, name, slug, parent_farm_id, status, farm_details:farm_details(address_line1, address_line2, city, province, postal_code, country, notes), farm_erp:farm_erp(nearest_town, nearest_hospital_name, nearest_hospital_distance_km, emergency_instructions, has_fuel_storage, has_chemical_storage)',
-        )
-        .order('name', { ascending: true });
-      if (!active) return;
-      if (err) {
-        setError(err.message);
-        setRows([]);
-      } else {
-        setRows((data as Location[]) ?? []);
-      }
-      setLoading(false);
-    };
-    load();
-    return () => {
-      active = false;
-    };
+      setRows((data as Location[]) ?? []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadLocations();
   }, [session.user.id]);
+
+  const handleAddLocation = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = newName.trim();
+    if (!name || !primaryFarm) return;
+    setAddSaving(true);
+    setAddError(null);
+    const { error: err } = await supabase.from('farms').insert({
+      name,
+      slug: toSlug(name),
+      parent_farm_id: primaryFarm.id,
+    });
+    if (err) {
+      setAddError(
+        err.message.includes('farms_slug_key')
+          ? 'A location with a very similar name already exists.'
+          : err.message,
+      );
+    } else {
+      setNewName('');
+      setShowAdd(false);
+      await loadLocations();
+    }
+    setAddSaving(false);
+  };
 
   const renderRow = (loc: Location, depth: number) => {
     const details = Array.isArray(loc.farm_details)
@@ -135,10 +164,19 @@ function Locations({ session }: Props) {
       <Nav session={session} email={session.user.email} pageTitle="Locations" />
       <div className="app">
         <div className="card stack">
-          <h1>Locations</h1>
-          {loading && <p>Loading...</p>}
-          {error && <p className="status">{error}</p>}
-          {!loading && !error && rows.length === 0 && <p>No locations yet.</p>}
+          <div className="page-head">
+            <h1>Locations</h1>
+            {isAdmin && primaryFarm && (
+              <button type="button" onClick={() => setShowAdd(true)}>
+                + Add location
+              </button>
+            )}
+          </div>
+          {loading && <p className="empty">Loading…</p>}
+          {error && <p className="status error">{error}</p>}
+          {!loading && !error && rows.length === 0 && (
+            <p className="empty">No locations yet.</p>
+          )}
           {!loading && !error && rows.length > 0 && (
             <table>
               <thead>
@@ -154,6 +192,44 @@ function Locations({ session }: Props) {
           )}
         </div>
       </div>
+
+      {showAdd && primaryFarm && (
+        <div className="modal-backdrop" onClick={() => setShowAdd(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <form className="stack" onSubmit={handleAddLocation}>
+              <h2>Add a location</h2>
+              <p style={{ color: 'var(--muted)' }}>
+                A location is a separate yard or site under{' '}
+                <strong>{primaryFarm.name}</strong>. Equipment, buildings, and
+                logs can be tracked per location.
+              </p>
+              <label>
+                <span>Location name</span>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. North Yard"
+                  required
+                />
+              </label>
+              {addError && <p className="status error">{addError}</p>}
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button type="submit" disabled={addSaving}>
+                  {addSaving ? 'Adding…' : 'Add location'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setShowAdd(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {quickview && (
         <div className="modal-backdrop" onClick={() => setQuickview(null)}>

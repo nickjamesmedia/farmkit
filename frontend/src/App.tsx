@@ -21,6 +21,7 @@ import LocationDetail from './pages/LocationDetail';
 import Buildings from './pages/Buildings';
 import BuildingDetail from './pages/BuildingDetail';
 import AdminTools from './pages/AdminTools';
+import People from './pages/People';
 import AdminActivity from './pages/AdminActivity';
 import RlsAudit from './pages/RlsAudit';
 
@@ -223,6 +224,16 @@ function App() {
                 <RequireAuth session={session}>
                   <RequireRole allowed={['admin']}>
                     <ManageUsers session={session as Session} />
+                  </RequireRole>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/people"
+              element={
+                <RequireAuth session={session}>
+                  <RequireRole allowed={['admin', 'manager']}>
+                    <People session={session as Session} />
                   </RequireRole>
                 </RequireAuth>
               }

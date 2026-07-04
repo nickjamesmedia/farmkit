@@ -184,6 +184,9 @@ function Home({ session }: Props) {
               <Link className="btn secondary" to="/admin">
                 Admin Tools
               </Link>
+              <Link className="btn secondary" to="/people">
+                People
+              </Link>
               <Link className="btn secondary" to="/users">
                 Manage Users
               </Link>
