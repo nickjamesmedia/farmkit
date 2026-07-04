@@ -8,6 +8,8 @@
 
 ## Current (ordered)
 
+- [ ] **Finish Team invite backend config** (set Edge Function secret `FARMKIT_INVITE_REDIRECT_URL=https://farmkit.app/welcome`; confirm Supabase Auth redirect allow-list includes `https://farmkit.app/welcome`)
+- [ ] **Manual smoke test Team flow** (admin invite, invitee set password, manager People-only access, non-admin blocked from account access)
 - [ ] **Add DB-level admin child-farm enrollment** (schema helper + triggers + backfill; ensure revocation on demotion/removal)
 
 - [ ] **Apply v0.1 schema + dev RLS in Supabase** (`supabase/schema.sql`, `supabase/rls_policies_dev.sql`) and run ERP data migration if needed
@@ -24,9 +26,11 @@
 
 - [ ] **Plan: hostname-based multi-tenant routing (subdomain-first)** (`P-20260202-001`, required before v0.1 beta launch)
 
-- [ ] **Plan: Users page revamp + secure email invites** (`P-20260202-002`, v0.1 beta prerequisite)
-
 ## Done
+
+- [x] **Deploy Team invite migration + Edge Function** (`team_invites` migration applied to Supabase project `rjhffpxijysfuusriqwg`; `invite-team-member` version 1 active with JWT verification) (2026-07-04)
+
+- [x] **Implement Team page + secure email invite foundation** (`P-20260202-002`, local code complete; deployment/manual test pending) (2026-07-03)
 
 - [x] **Archive active plan and reset PLANS template** (2026-02-08)
 
@@ -177,6 +181,12 @@
 
 
 ## Notes (append-only)
+
+- 2026-07-04: Supabase/Netlify plugins were added and rechecked. Supabase migration/function tools work, but secret/Auth redirect tools are still unavailable and CLI auth is still missing. Netlify project access works; public Vite Supabase env vars were upserted, but the Netlify MCP deploy upload failed with `500 Internal Server Error`; a clean-source retry also stalled during upload and was interrupted. Production is unchanged on deploy `6a486073c4045c0dadc05c39`.
+
+- 2026-07-04: Team invite migration and Edge Function are deployed in the active Farmkit Supabase project. Verified migration `team_invites` is recorded, expected DB objects exist, and anonymous function POST is rejected with `401 UNAUTHORIZED_NO_AUTH_HEADER`. Remaining backend config requires CLI/dashboard access because the available Supabase connector has no Edge Function secret setter or Auth redirect URL configuration tool, and this shell has no Supabase CLI token.
+
+- 2026-07-04: Team invite backend deployment still pending. Supabase MCP discovery exposed no Supabase tools; `npx supabase@latest` works, but `projects list` fails with `Access token not provided`, so migration/function/secret deploy and redirect URL confirmation require CLI login or `SUPABASE_ACCESS_TOKEN`.
 
 - 2026-02-08: Archived the current active plan; heavier bug testing and optimization is deferred until just before v0.1 beta release.
 

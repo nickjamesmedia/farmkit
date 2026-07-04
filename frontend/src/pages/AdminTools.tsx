@@ -126,8 +126,7 @@ function AdminTools({ session }: Props) {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 }}
               >
-                <Link className="nav-btn" to="/people">People</Link>
-                {isAdmin && <Link className="nav-btn" to="/users">Manage Users</Link>}
+                <Link className="nav-btn" to="/team">Team</Link>
                 {isAdmin && <Link className="nav-btn" to="/admin/farm">Farm Setup</Link>}
               </div>
               <div className="card stack" style={{ marginTop: '1rem' }}>

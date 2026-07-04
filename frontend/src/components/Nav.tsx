@@ -325,6 +325,11 @@ function Nav({ session, email, pageTitle }: NavProps) {
               My Account
             </Link>
             {adminToolsEnabled && (
+              <Link className="menu-item" to="/team" onClick={closeMenu}>
+                Team
+              </Link>
+            )}
+            {adminToolsEnabled && (
               <Link className="menu-item" to="/admin" onClick={closeMenu}>
                 Admin Tools
               </Link>

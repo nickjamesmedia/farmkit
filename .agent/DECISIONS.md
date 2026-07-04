@@ -4,6 +4,11 @@
 
 > Add new decisions at the top. Do not rewrite history; append corrections as new entries.
 
+## 2026-07-03 - Merge People and account access into Team with Supabase Edge invites
+**Context:** The old `/users` page required raw Supabase Auth user IDs, and `/people` separately managed non-login attribution names. Beta onboarding needs one farmer-friendly Team surface and secure invite-by-email.
+**Decision:** Add `/team` as the primary Team page. Admins manage account access and invites there; managers can manage the People list but cannot invite or change login access. User email visibility is handled by `public.farmkit_team_members(uuid)`, and invites are sent through the `invite-team-member` Supabase Edge Function with service-role use limited to the server.
+**Consequences:** `/users` and `/people` redirect to `/team`. Deployment now requires applying migration `0004_team_invites.sql`, deploying the Edge Function, and setting Supabase Auth invite redirect to `/welcome`.
+
 ## 2026-02-02 - DB-level admin child-farm enrollment (inherited membership rows)
 **Context:** Parent-farm Admins need to appear as members of child farms (UI + membership lists), and we want this to stay true even when child farms are added later.  
 **Decision:** Add `farm_memberships.inherited_from_farm_id` and implement schema-level triggers to auto-enroll **active parent-farm Admins** into all child farms by creating **inherited membership rows**. Cleanly revoke these inherited rows when the parent Admin membership is removed/demoted/disabled. Provide a backfill helper (`public.farmkit_ensure_admin_child_farm_memberships()`).  

@@ -126,6 +126,7 @@ export type MaintenanceLog = {
 export type UserProfile = {
   id: string;
   auth_user_id: string;
+  email: string | null;
   display_name: string | null;
   default_farm_id: string | null;
   created_at: string;
@@ -140,6 +141,7 @@ export type FarmMembership = {
   status: 'active' | 'invited' | 'disabled';
   account_mode: 'personal' | 'shared';
   person_id: string | null;
+  invited_email: string | null;
   display_name_override: string | null;
   created_at: string;
   created_by_auth_user_id: string | null;

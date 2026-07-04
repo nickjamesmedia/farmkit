@@ -11,7 +11,6 @@ import AddMaintenanceLog from './pages/AddMaintenanceLog';
 import Account from './pages/Account';
 import FarmSetup from './pages/FarmSetup';
 import FarmInfo from './pages/FarmInfo';
-import ManageUsers from './pages/ManageUsers';
 import SearchPage from './pages/Search';
 import Maintenance from './pages/Maintenance';
 import MaintenanceLogDetail from './pages/MaintenanceLogDetail';
@@ -21,7 +20,8 @@ import LocationDetail from './pages/LocationDetail';
 import Buildings from './pages/Buildings';
 import BuildingDetail from './pages/BuildingDetail';
 import AdminTools from './pages/AdminTools';
-import People from './pages/People';
+import Team from './pages/Team';
+import Welcome from './pages/Welcome';
 import AdminActivity from './pages/AdminActivity';
 import RlsAudit from './pages/RlsAudit';
 
@@ -110,6 +110,7 @@ function App() {
         <NavDataProvider session={session}>
           <Routes>
             <Route path="/login" element={<Login session={session} />} />
+            <Route path="/welcome" element={<Welcome session={session} />} />
             <Route
               path="/dashboard"
               element={
@@ -219,25 +220,17 @@ function App() {
               }
             />
             <Route
-              path="/users"
-              element={
-                <RequireAuth session={session}>
-                  <RequireRole allowed={['admin']}>
-                    <ManageUsers session={session as Session} />
-                  </RequireRole>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/people"
+              path="/team"
               element={
                 <RequireAuth session={session}>
                   <RequireRole allowed={['admin', 'manager']}>
-                    <People session={session as Session} />
+                    <Team session={session as Session} />
                   </RequireRole>
                 </RequireAuth>
               }
             />
+            <Route path="/users" element={<Navigate to="/team" replace />} />
+            <Route path="/people" element={<Navigate to="/team" replace />} />
             <Route
               path="/admin"
               element={

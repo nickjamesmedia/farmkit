@@ -50,7 +50,10 @@
     * `role_id` (uuid, fk → roles)
     * `status` (text: active/invited/disabled)
     * `account_mode` (text: personal/shared)
+    * `person_id` (uuid, fk → people, nullable)
+    * `invited_email` (text, nullable)
     * `display_name_override` (text, nullable) *(optional: label for shared logins like “Shop Tablet”)*
+    * `inherited_from_farm_id` (uuid, fk → farms, nullable)
     * `created_at` (timestamptz)
     * `created_by_auth_user_id` (uuid, fk → auth.users, nullable)
     * `last_seen_at` (timestamptz, nullable) *(optional)*
@@ -103,20 +106,23 @@
     * `updated_at` (timestamptz)
     * `updated_by_auth_user_id` (uuid, fk → auth.users, nullable)
 
-* `farm_invites` *(optional for V0.1; recommended if you want invite-by-email flows)*
+* `farm_team_invites`
 
-  * Purpose: invite someone to a farm before they have access.
+  * Purpose: audit and rate-limit email invites sent through the Supabase Edge Function.
   * schema:
 
     * `id` (uuid, pk)
     * `farm_id` (uuid, fk → farms)
     * `email` (text)
+    * `auth_user_id` (uuid, fk → auth.users, nullable)
     * `role_id` (uuid, fk → roles)
-    * `token` (text, unique)
-    * `status` (text: pending/accepted/expired/revoked)
-    * `expires_at` (timestamptz)
-    * `created_at` (timestamptz)
+    * `account_mode` (text: personal/shared)
+    * `display_name` (text, nullable)
+    * `status` (text: sent/accepted/revoked/failed)
     * `created_by_auth_user_id` (uuid, fk → auth.users)
+    * `created_at` (timestamptz)
+    * `last_sent_at`, `revoked_at`, `accepted_at` (timestamptz, nullable)
+    * `error_message` (text, nullable)
 
 ### Identity: Named People + Shared Accounts (V0.1 beta launch)
 
@@ -129,6 +135,7 @@
 
     * `id` (uuid, pk)
     * `auth_user_id` (uuid, fk → auth.users, unique)
+    * `email` (text, nullable)
     * `display_name` (text, nullable)
     * `default_farm_id` (uuid, fk → farms, nullable) *(optional: which farm to open by default)*
     * `created_at` (timestamptz)

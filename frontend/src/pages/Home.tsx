@@ -25,6 +25,17 @@ type MaintenanceLogRow = {
   } | null;
 };
 
+type MaintenanceLogQueryRow = Omit<MaintenanceLogRow, 'equipment' | 'container'> & {
+  equipment:
+    | MaintenanceLogRow['equipment']
+    | NonNullable<MaintenanceLogRow['equipment']>[]
+    | null;
+  container:
+    | MaintenanceLogRow['container']
+    | NonNullable<MaintenanceLogRow['container']>[]
+    | null;
+};
+
 function Home({ session }: Props) {
   const [logs, setLogs] = useState<MaintenanceLogRow[]>([]);
   const [logsError, setLogsError] = useState<string | null>(null);
@@ -68,12 +79,12 @@ function Home({ session }: Props) {
         setLogs([]);
       } else {
         const rows =
-          data?.map((row: any) => ({
+          (data as MaintenanceLogQueryRow[] | null)?.map((row) => ({
             ...row,
             equipment: Array.isArray(row.equipment) ? row.equipment[0] ?? null : row.equipment,
             container: Array.isArray(row.container) ? row.container[0] ?? null : row.container,
           })) ?? [];
-        setLogs(rows as MaintenanceLogRow[]);
+        setLogs(rows);
       }
       setLogsLoading(false);
     };
@@ -184,11 +195,8 @@ function Home({ session }: Props) {
               <Link className="btn secondary" to="/admin">
                 Admin Tools
               </Link>
-              <Link className="btn secondary" to="/people">
-                People
-              </Link>
-              <Link className="btn secondary" to="/users">
-                Manage Users
+              <Link className="btn secondary" to="/team">
+                Team
               </Link>
               <Link className="btn secondary" to="/admin/farm">
                 Farm Setup

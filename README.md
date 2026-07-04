@@ -68,17 +68,11 @@ See `docs/dev/data_model.md`.
 - Refresh the app at `http://localhost:5173/` (logged in) to see seeded records.
 
 ## Inviting users (server-side)
-- Requires service role key (never expose to frontend).
-- Send an invite and upsert `app_users`:
-```bash
-SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx ts-node supabase/invite_user.ts user@example.com admin "First" "Last"
-```
-Note: `supabase/invite_user.ts` currently targets the prototype `app_users` table; update it for v0.1 (`user_profiles` + `farm_memberships`) before relying on it.
-
-To wire the frontend “Send login email” button (Manage Users page):
-- Provide an HTTP endpoint (e.g., Netlify/Vercel function) at `VITE_INVITE_ENDPOINT` (defaults to `/api/send-invite`).
-- That endpoint must call Supabase `auth.admin.inviteUserByEmail` using the service role key and upsert `app_users` (similar to `supabase/invite_user.ts`), returning 200 on success or an error JSON: `{ "error": "message" }`.
-- Do NOT expose the service role key to the browser; keep it only in your serverless function/secret store.
+- Requires Supabase migration `0004_team_invites.sql` and Edge Function `invite-team-member`.
+- Farm admins invite users from `/team` by email, role, account mode, and optional display name.
+- The browser calls the Edge Function; the service-role key stays server-side only.
+- The Edge Function validates the caller's JWT, checks Admin role for the target farm, sends the Supabase Auth invite email, and writes `user_profiles`, `farm_memberships`, and `farm_team_invites`.
+- Invite links should redirect to `/welcome`, where invitees set a password and activate their invited memberships.
 
 ---
 
