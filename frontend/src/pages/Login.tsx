@@ -11,7 +11,7 @@ function Login({ session }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   if (session) {
     return <Navigate to="/dashboard" replace />;
@@ -20,7 +20,7 @@ function Login({ session }: Props) {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setStatusMessage('');
+    setErrorMessage('');
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -28,42 +28,49 @@ function Login({ session }: Props) {
     });
 
     if (error) {
-      setStatusMessage(error.message);
-    } else {
-      setStatusMessage('Logged in.');
+      setErrorMessage(
+        error.message === 'Invalid login credentials'
+          ? 'Email or password is incorrect. Check with your farm admin if you need help.'
+          : error.message,
+      );
     }
 
     setLoading(false);
   };
 
   return (
-    <div className="app">
-      <div className="card">
-        <h1>Farmkit</h1>
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-brand">
+          <div className="wordmark">Farmkit</div>
+          <div className="tagline">Farm equipment & maintenance tracking</div>
+        </div>
         <form onSubmit={handleLogin} className="stack">
-          <label className="stack">
+          <label>
             <span>Email</span>
             <input
               type="email"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </label>
-          <label className="stack">
+          <label>
             <span>Password</span>
             <input
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? 'Signing in...' : 'Login'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
-        {statusMessage && <p className="status">{statusMessage}</p>}
+        {errorMessage && <p className="status error">{errorMessage}</p>}
       </div>
     </div>
   );

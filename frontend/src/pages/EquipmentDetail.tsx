@@ -553,7 +553,7 @@ function EquipmentDetail({ session }: Props) {
                 <button type="submit">Save</button>
                 <button
                   type="button"
-                  style={{ background: '#ccc', color: '#000' }}
+                  className="secondary"
                   onClick={() => setEditing(false)}
                 >
                   Cancel

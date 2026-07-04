@@ -272,34 +272,27 @@ function EquipmentPage({ session }: EquipmentPageProps) {
       <Nav session={session} email={session.user.email} pageTitle="Equipment" />
       <div className="app">
         <div className="card stack">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <h1 style={{ margin: 0 }}>Equipment</h1>
+          <div className="page-head">
+            <h1>Equipment</h1>
             {equipmentEnabled && canManageEquipment && (
               <button type="button" onClick={() => setShowForm(true)}>
-                Add equipment
+                + Add equipment
               </button>
             )}
           </div>
 
-          {loading && <p>Loading...</p>}
-          {error && <p className="status">{error}</p>}
+          {loading && <p className="empty">Loading…</p>}
+          {error && <p className="status error">{error}</p>}
           {!loading && !error && !equipmentEnabled && !navLoading && (
             <p className="status">Equipment module is disabled for this farm.</p>
           )}
 
           {!loading && !error && equipmentEnabled && equipment.length === 0 && (
-            <p>No equipment found.</p>
+            <p className="empty">No equipment found.</p>
           )}
 
           {!loading && !error && equipment.length > 0 && (
+            <div className="table-wrap">
             <table>
               <thead>
                 <tr>
@@ -336,6 +329,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
         ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
@@ -452,7 +446,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 </button>
                 <button
                   type="button"
-                  style={{ background: '#ccc', color: '#000' }}
+                  className="secondary"
                   onClick={() => {
                     setShowForm(false);
                     resetForm();
@@ -624,7 +618,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 </button>
             <button
               type="button"
-              style={{ background: '#ccc', color: '#000' }}
+              className="secondary"
               onClick={() => {
                 setShowDetails(false);
                     setSelectedEquipment(null);

@@ -332,7 +332,7 @@ function ManageUsers({ session }: Props) {
                     type="button"
                     onClick={resetForm}
                     disabled={saving}
-                    style={{ background: '#ccc', color: '#000' }}
+                    className="secondary"
                   >
                     Clear
                   </button>

@@ -230,7 +230,7 @@ function Locations({ session }: Props) {
               </button>
               <button
                 type="button"
-                style={{ background: '#ccc', color: '#000' }}
+                className="secondary"
                 onClick={() => setQuickview(null)}
               >
                 Close

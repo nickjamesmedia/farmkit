@@ -125,10 +125,6 @@ function Maintenance({ session }: Props) {
     return parts.length > 0 ? parts.join(' ') : '-';
   };
 
-  const handleEdit = (log: MaintenanceLogRow) => {
-    navigate(`/maintenance/log/${log.id}`);
-  };
-
   const handleDelete = async (log: MaintenanceLogRow) => {
     const confirmed = window.confirm(`Delete "${log.title}"?`);
     if (!confirmed) return;
@@ -150,64 +146,75 @@ function Maintenance({ session }: Props) {
       <Nav session={session} email={session.user.email} pageTitle="Maintenance" />
       <div className="app">
         <div className="card stack">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-            <h1 style={{ margin: 0 }}>Maintenance</h1>
+          <div className="page-head">
+            <h1>Maintenance history</h1>
             {maintenanceEnabled && (
-              <Link to="/maintenance/add">
-                <button type="button">New Log</button>
+              <Link className="btn" to="/maintenance/add">
+                + Add Log
               </Link>
             )}
           </div>
-          {loading && <p>Loading...</p>}
-          {error && <p className="status">{error}</p>}
+          {loading && <p className="empty">Loading…</p>}
+          {error && <p className="status error">{error}</p>}
           {!loading && !error && !maintenanceEnabled && !navLoading && (
             <p className="status">Maintenance module is disabled for this farm.</p>
           )}
           {!loading && !error && maintenanceEnabled && logs.length === 0 && (
-            <p>No maintenance logs yet.</p>
+            <p className="empty">No maintenance logs yet.</p>
           )}
           {!loading && !error && logs.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Person</th>
-                  <th>Equipment</th>
-                  <th>Title</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td>{log.maintenance_date ?? log.logged_at ?? '-'}</td>
-                    <td>{renderPerson(log)}</td>
-                    <td>{renderEquipment(log)}</td>
-                    <td>{log.title}</td>
-                    <td>{log.status ?? '-'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <button type="button" onClick={() => handleEdit(log)}>
-                          Edit
-                        </button>
-                        <button type="button" onClick={() => handleDelete(log)}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="list-rows">
+              {logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="list-row clickable"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/maintenance/log/${log.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/maintenance/log/${log.id}`);
+                  }}
+                >
+                  <div className="row-main">
+                    <div className="row-title">{log.title}</div>
+                    <div className="row-sub">
+                      {renderEquipment(log)}
+                      {' · '}
+                      {renderPerson(log)}
+                      {' · '}
+                      {(log.maintenance_date ?? log.logged_at ?? '').slice(0, 10)}
+                    </div>
+                  </div>
+                  <div className="row-side">
+                    {log.status && (
+                      <span className={`chip ${log.status === 'open' ? 'open' : ''}`}>
+                        {log.status}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="danger small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(log);
+                      }}
+                    >
+                      Delete
+                    </button>
+                    <span className="row-chevron">›</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-          {!loading && !error && logs.length > 0 && (
+          {!loading && !error && logs.length > 0 && hasMore && (
             <button
               type="button"
+              className="secondary"
               onClick={() => loadLogs(offset, true)}
-              disabled={!hasMore || loadingMore}
+              disabled={loadingMore}
             >
-              {loadingMore ? 'Loading...' : hasMore ? 'Load more' : 'No more logs'}
+              {loadingMore ? 'Loading…' : 'Show more'}
             </button>
           )}
         </div>
