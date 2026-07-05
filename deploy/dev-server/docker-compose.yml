@@ -1,0 +1,14 @@
+# Dev preview server for Farmkit (homebrain).
+# Serves frontend/dist-dev (built with `npm run build:dev` against the DEV
+# Supabase project) on 10.0.0.148:8789 — map dev.farmkit.app to it via
+# NPM/Tailscale. No Netlify build minutes involved.
+services:
+  farmkit-dev:
+    image: nginx:alpine
+    container_name: farmkit_dev
+    restart: unless-stopped
+    ports:
+      - "10.0.0.148:8789:80"
+    volumes:
+      - ../../frontend/dist-dev:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
