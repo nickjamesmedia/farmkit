@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
@@ -55,6 +55,7 @@ function Locations({ session }: Props) {
   const [addError, setAddError] = useState<string | null>(null);
   const [addSaving, setAddSaving] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { moduleEnabledByKey, roleKey } = useNavData();
   const erpEnabled = moduleEnabledByKey.erp ?? true;
   const isAdmin = roleKey === 'admin';
@@ -114,6 +115,15 @@ function Locations({ session }: Props) {
     loadLocations();
   }, [session.user.id]);
 
+  // Farm Setup links here with ?add=1 to jump straight into the add modal
+  useEffect(() => {
+    if (searchParams.get('add') === '1' && isAdmin && primaryFarm && !showAdd) {
+      setShowAdd(true);
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isAdmin, primaryFarm]);
+
   const handleAddLocation = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = newName.trim();
@@ -172,6 +182,11 @@ function Locations({ session }: Props) {
               </button>
             )}
           </div>
+          <p style={{ color: 'var(--muted)' }}>
+            Locations are separate farms, yards, or properties that have their own
+            address. Don’t add buildings here — buildings (bins, sheds, shops) live
+            on the Buildings page and belong to a location.
+          </p>
           {loading && <p className="empty">Loading…</p>}
           {error && <p className="status error">{error}</p>}
           {!loading && !error && rows.length === 0 && (

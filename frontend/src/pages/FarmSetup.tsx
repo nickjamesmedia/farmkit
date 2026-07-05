@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { fetchActiveFarmContext } from '../lib/farmContext';
 import { toSlug } from '../utils/slug';
 import Nav from '../components/Nav';
+import { Link } from 'react-router-dom';
 import { useNavData } from '../lib/navDataContext';
 
 type Props = {
@@ -57,6 +58,25 @@ type FarmErp = {
   emergency_instructions: string | null;
 };
 
+const MAX_IMAGE_BYTES = 400 * 1024;
+
+function readImageAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Pick an image file (PNG, JPG, SVG…).'));
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      reject(new Error('Image is too big — keep it under 400 KB.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function FarmSetup({ session }: Props) {
   const { roleKey, loading: navLoading } = useNavData();
   const [farm, setFarm] = useState<Farm | null>(null);
@@ -75,6 +95,9 @@ function FarmSetup({ session }: Props) {
   const [modulesSaving, setModulesSaving] = useState(false);
   const [modulesError, setModulesError] = useState<string | null>(null);
   const [modulesStatus, setModulesStatus] = useState('');
+  const [contactOptions, setContactOptions] = useState<
+    { auth_user_id: string; name: string; email: string | null; phone: string | null }[]
+  >([]);
 
   const farmState = useMemo(() => {
     return (
@@ -325,6 +348,37 @@ function FarmSetup({ session }: Props) {
       setDetails((detailsData as FarmDetails) ?? null);
       setErp((erpData as FarmErp) ?? null);
       setLoading(false);
+
+      // load admins/managers/users as primary-contact options (with phone
+      // from their profile, added in migration 0005)
+      const targetId = targetFarm?.id ?? farmId;
+      const { data: teamRows } = await supabase.rpc('farmkit_team_members', {
+        target_farm_id: targetId,
+      });
+      if (!active) return;
+      const memberRows = ((teamRows as any[]) ?? []).filter(
+        (row) => row.account_mode === 'personal' && row.status === 'active',
+      );
+      const ids = memberRows.map((row) => row.auth_user_id);
+      let phones = new Map<string, string | null>();
+      if (ids.length) {
+        const { data: profileRows } = await supabase
+          .from('user_profiles')
+          .select('auth_user_id, phone')
+          .in('auth_user_id', ids);
+        phones = new Map(
+          ((profileRows as any[]) ?? []).map((row) => [row.auth_user_id, row.phone]),
+        );
+      }
+      if (!active) return;
+      setContactOptions(
+        memberRows.map((row) => ({
+          auth_user_id: row.auth_user_id,
+          name: row.display_name || row.email || 'Member',
+          email: row.email ?? null,
+          phone: phones.get(row.auth_user_id) ?? null,
+        })),
+      );
     };
 
     load();
@@ -351,18 +405,22 @@ function FarmSetup({ session }: Props) {
 
     let savedFarm: Farm | null = null;
     if (farmState.id) {
-      const { data, error: upsertError } = await supabase
+      // Update (not upsert): upsert runs the INSERT with-check, which for a
+      // primary farm (parent_farm_id null) evaluates
+      // farmkit_has_farm_role(null, ['admin']) = false and trips the farms RLS
+      // policy. update checks admin on the farm's own id, which is correct.
+      const { data, error: updateError } = await supabase
         .from('farms')
-        .upsert({
-          id: farmState.id,
+        .update({
           name,
           slug,
           parent_farm_id: farmState.parent_farm_id ?? null,
         })
+        .eq('id', farmState.id)
         .select()
         .maybeSingle();
-      if (upsertError || !data) {
-        setError(upsertError?.message ?? 'Unable to save farm');
+      if (updateError || !data) {
+        setError(updateError?.message ?? 'Unable to save farm');
         setSaving(false);
         return;
       }
@@ -480,7 +538,16 @@ function FarmSetup({ session }: Props) {
       <Nav session={session} email={session.user.email} pageTitle="Farm Setup" />
       <div className="app">
         <div className="card stack">
-          <h1>Farm Setup</h1>
+          <div className="page-head">
+            <h1>Farm Setup</h1>
+            <Link className="btn secondary" to="/locations?add=1">
+              + Add farm / location
+            </Link>
+          </div>
+          <p style={{ color: 'var(--muted)' }}>
+            Farm-wide settings: name, contact info, branding, and which modules are
+            turned on. Only admins can see this page.
+          </p>
           {loading ? (
             <p>Loading...</p>
           ) : (
@@ -495,6 +562,36 @@ function FarmSetup({ session }: Props) {
                   }
                   required
                 />
+              </label>
+
+              <label className="stack">
+                <span>Primary contact</span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const picked = contactOptions.find(
+                      (opt) => opt.auth_user_id === e.target.value,
+                    );
+                    if (picked) {
+                      setDetails({
+                        ...detailsState,
+                        primary_contact_name: picked.name,
+                        primary_contact_phone:
+                          picked.phone ?? detailsState.primary_contact_phone,
+                        email: detailsState.email || picked.email || '',
+                      });
+                      setStatus(`Contact set to ${picked.name}. Adjust below if needed.`);
+                    }
+                  }}
+                >
+                  <option value="">Pick a team member (or type below)…</option>
+                  {contactOptions.map((opt) => (
+                    <option key={opt.auth_user_id} value={opt.auth_user_id}>
+                      {opt.name}
+                      {opt.phone ? ` — ${opt.phone}` : ''}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="stack">
@@ -564,26 +661,41 @@ function FarmSetup({ session }: Props) {
               </label>
 
               <label className="stack">
-                <span>Farm app URL</span>
+                <span>Favicon</span>
+                {detailsState.favicon_url && (
+                  <img
+                    src={detailsState.favicon_url}
+                    alt="Favicon preview"
+                    style={{ width: 24, height: 24, objectFit: 'contain' }}
+                  />
+                )}
                 <input
-                  type="url"
-                  value={detailsState.app_url ?? ''}
-                  onChange={(e) =>
-                    setDetails({ ...detailsState, app_url: e.target.value })
-                  }
-                  placeholder="https://app.example.com"
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const dataUrl = await readImageAsDataUrl(file);
+                      setDetails({ ...detailsState, favicon_url: dataUrl });
+                      setStatus('Favicon ready — hit Save to keep it.');
+                      setError(null);
+                    } catch (err) {
+                      setError((err as Error).message);
+                    }
+                  }}
                 />
-              </label>
-
-              <label className="stack">
-                <span>Favicon URL</span>
                 <input
-                  type="url"
-                  value={detailsState.favicon_url ?? ''}
+                  type="text"
+                  value={
+                    detailsState.favicon_url?.startsWith('data:')
+                      ? ''
+                      : detailsState.favicon_url ?? ''
+                  }
                   onChange={(e) =>
                     setDetails({ ...detailsState, favicon_url: e.target.value })
                   }
-                  placeholder="https://example.com/favicon.ico"
+                  placeholder="…or paste an image URL"
                 />
                 <button
                   type="button"
@@ -608,14 +720,41 @@ function FarmSetup({ session }: Props) {
               </label>
 
               <label className="stack">
-                <span>Logo URL</span>
+                <span>Logo</span>
+                {detailsState.logo_url && (
+                  <img
+                    src={detailsState.logo_url}
+                    alt="Logo preview"
+                    style={{ maxHeight: 48, maxWidth: 200, objectFit: 'contain' }}
+                  />
+                )}
                 <input
-                  type="url"
-                  value={detailsState.logo_url ?? ''}
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    try {
+                      const dataUrl = await readImageAsDataUrl(file);
+                      setDetails({ ...detailsState, logo_url: dataUrl });
+                      setStatus('Logo ready — hit Save to keep it.');
+                      setError(null);
+                    } catch (err) {
+                      setError((err as Error).message);
+                    }
+                  }}
+                />
+                <input
+                  type="text"
+                  value={
+                    detailsState.logo_url?.startsWith('data:')
+                      ? ''
+                      : detailsState.logo_url ?? ''
+                  }
                   onChange={(e) =>
                     setDetails({ ...detailsState, logo_url: e.target.value })
                   }
-                  placeholder="https://example.com/logo.png"
+                  placeholder="…or paste an image URL"
                 />
               </label>
 

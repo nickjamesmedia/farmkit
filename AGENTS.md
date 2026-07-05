@@ -99,3 +99,21 @@ Prefer small, reviewable changes over “vibe-coded” rewrites.
 - Do not generate application code unless explicitly requested.
 - Do not assume a framework, language, backend, database, or deployment target.
 - Do not remove, rewrite, or reorganize unrelated content without approval.
+
+
+## Module architecture rule (UI)
+
+When adding a module that is backed by a database table, follow the established
+pattern:
+
+1. The module gets a **main page with a tabular view** of its data (with
+   filtering/sorting once the list can grow).
+2. **Rows are clickable** and open a **quick-view modal** for the item
+   (lightweight edit/archive where appropriate).
+3. The modal has a **"Detailed view" action** that navigates to the item's own
+   page.
+4. Register the module in **Search** (new result type + query + route) and gate
+   everything behind its `modules` key.
+
+Equipment, Buildings, Locations, and Team all follow this pattern — keep new
+modules consistent with it.

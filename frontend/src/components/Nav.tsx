@@ -286,9 +286,26 @@ function Nav({ session, email, pageTitle }: NavProps) {
             aria-label="Menu"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="menu-meta">
-              Signed in as <strong>{accountName}</strong>
-              {farmName ? ` — ${farmName}` : ''}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.5rem',
+              }}
+            >
+              <div className="menu-meta">
+                Signed in as <strong>{accountName}</strong>
+                {farmName ? ` — ${farmName}` : ''}
+              </div>
+              <button
+                type="button"
+                className="secondary small"
+                aria-label="Close menu"
+                onClick={closeMenu}
+              >
+                ✕ Close
+              </button>
             </div>
             <div className="menu-divider" />
             <Link className="menu-item" to="/dashboard" onClick={closeMenu}>

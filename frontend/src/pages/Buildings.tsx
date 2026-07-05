@@ -252,10 +252,14 @@ function Buildings({ session }: Props) {
             <h1 style={{ margin: 0 }}>Buildings</h1>
             {canManage && buildingsEnabled && !navLoading && (
               <button type="button" onClick={openAdd}>
-                Add Building
+                + Add Building
               </button>
             )}
           </div>
+          <p style={{ color: 'var(--muted)' }}>
+            Bins, sheds, shops and other structures — each belongs to a location,
+            and maintenance or inspections can be logged against it.
+          </p>
           {loading && <p>Loading...</p>}
           {error && <p className="status">{error}</p>}
           {!loading && !error && !buildingsEnabled && !navLoading && (
@@ -323,9 +327,18 @@ function Buildings({ session }: Props) {
               })()}
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate(`/maintenance/add?container_id=${quickview.id}`);
+                }}
+              >
+                + Add Log
+              </button>
               {canManage && (
                 <button
                   type="button"
+                  className="secondary"
                   onClick={() => {
                     openEdit(quickview);
                     setQuickview(null);

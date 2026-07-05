@@ -82,6 +82,8 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [vinSn, setVinSn] = useState('');
   const [yearOfPurchase, setYearOfPurchase] = useState<number | ''>('');
   const [licenseClass, setLicenseClass] = useState('');
+  const [listSearch, setListSearch] = useState('');
+  const [listCategory, setListCategory] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(
     null,
@@ -267,6 +269,26 @@ function EquipmentPage({ session }: EquipmentPageProps) {
     setLogsLoading(false);
   };
 
+  const visibleEquipment = equipment.filter((item) => {
+    if (listCategory && item.category !== listCategory) return false;
+    if (listSearch.trim()) {
+      const needle = listSearch.toLowerCase();
+      const haystack = [
+        item.nickname,
+        item.unit_number,
+        item.category,
+        item.make,
+        item.model,
+        item.vin_sn,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(needle)) return false;
+    }
+    return true;
+  });
+
   return (
     <>
       <Nav session={session} email={session.user.email} pageTitle="Equipment" />
@@ -292,6 +314,43 @@ function EquipmentPage({ session }: EquipmentPageProps) {
           )}
 
           {!loading && !error && equipment.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.6rem',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="search"
+                placeholder="Search equipment…"
+                aria-label="Search equipment"
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                style={{ flex: '2 1 220px' }}
+              />
+              <select
+                aria-label="Filter by category"
+                value={listCategory}
+                onChange={(e) => setListCategory(e.target.value)}
+                style={{ flex: '1 1 170px', width: 'auto' }}
+              >
+                <option value="">All categories</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {!loading && !error && equipment.length > 0 && visibleEquipment.length === 0 && (
+            <p className="empty">No equipment matches those filters.</p>
+          )}
+
+          {!loading && !error && visibleEquipment.length > 0 && (
             <div className="table-wrap">
             <table>
               <thead>
@@ -306,7 +365,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 </tr>
               </thead>
               <tbody>
-        {equipment.map((item) => (
+        {visibleEquipment.map((item) => (
           <tr
             key={item.id}
             style={{ cursor: 'pointer' }}
@@ -603,7 +662,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 navigate(`/maintenance/add?equipment_id=${selectedEquipment.id}`);
               }}
             >
-              Edit logs
+              + Add Log
             </button>
           )}
           <button

@@ -1,35 +1,78 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import { toSlug } from '../utils/slug';
 
 type Props = {
   session: Session;
 };
 
+// Result types grow as modules are added; each new module should register a
+// type here, a query below, and a route in rowTarget().
+type ResultType = 'equipment' | 'building' | 'maintenance';
+
 type SearchResult = {
   id: string;
-  type: 'equipment' | 'maintenance';
+  type: ResultType;
   title: string;
   subtitle: string;
+  slug?: string;
+};
+
+const TYPE_LABEL: Record<ResultType, string> = {
+  equipment: 'Equipment',
+  building: 'Building',
+  maintenance: 'Log',
 };
 
 function SearchPage({ session }: Props) {
-  const [term, setTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [term, setTerm] = useState(searchParams.get('term') ?? '');
   const [category, setCategory] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'equipment' | 'maintenance'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | ResultType>('all');
+  const [categories, setCategories] = useState<string[]>([]);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading } = useNavData();
   const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
   const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
+  const buildingsEnabled =
+    (moduleEnabledByKey.containers ?? true) &&
+    (moduleEnabledByKey.containers_buildings ?? true);
 
-  const categories = useMemo(
-    () => Array.from(new Set(results.map((r) => r.type === 'equipment' ? r.subtitle.split(' | ')[0] : null).filter(Boolean) as string[])),
-    [results],
+  const farmScope = useMemo(
+    () => (dataScopeFarmIds.length ? dataScopeFarmIds : activeFarmId ? [activeFarmId] : []),
+    [dataScopeFarmIds, activeFarmId],
   );
+
+  // categories are loaded up front (not derived from results) so the picker
+  // is populated before the first search. Currently sourced from equipment;
+  // extend per module as more categorized modules land.
+  useEffect(() => {
+    let active = true;
+    const loadCategories = async () => {
+      if (navLoading || farmScope.length === 0 || !equipmentEnabled) return;
+      const { data } = await supabase
+        .from('equipment')
+        .select('category')
+        .in('farm_id', farmScope)
+        .not('category', 'is', null);
+      if (!active) return;
+      const distinct = Array.from(
+        new Set((data ?? []).map((row: any) => row.category).filter(Boolean)),
+      ).sort() as string[];
+      setCategories(distinct);
+    };
+    loadCategories();
+    return () => {
+      active = false;
+    };
+  }, [navLoading, farmScope, equipmentEnabled]);
 
   useEffect(() => {
     let active = true;
@@ -42,17 +85,10 @@ function SearchPage({ session }: Props) {
       }
       if (navLoading) {
         setLoading(true);
-        setError(null);
         return;
       }
-      if (!activeFarmId) {
+      if (farmScope.length === 0) {
         setError('No farm assigned to your profile.');
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-      if (!equipmentEnabled && !maintenanceEnabled) {
-        setError('Search is unavailable because Equipment and Maintenance modules are disabled.');
         setResults([]);
         setLoading(false);
         return;
@@ -61,11 +97,12 @@ function SearchPage({ session }: Props) {
       setLoading(true);
       setError(null);
 
-      const farmScope = dataScopeFarmIds.length ? dataScopeFarmIds : [activeFarmId];
       const emptyRes = { data: [], error: null as any };
-      const equipRes =
-        (typeFilter === 'all' || typeFilter === 'equipment') && equipmentEnabled
-          ? await supabase
+      const wantType = (t: ResultType) => typeFilter === 'all' || typeFilter === t;
+
+      const [equipRes, buildingRes, maintRes] = await Promise.all([
+        wantType('equipment') && equipmentEnabled
+          ? supabase
               .from('equipment')
               .select('id, nickname, unit_number, category, make, model')
               .in('farm_id', farmScope)
@@ -73,26 +110,32 @@ function SearchPage({ session }: Props) {
                 `nickname.ilike.%${term}%,unit_number.ilike.%${term}%,category.ilike.%${term}%,make.ilike.%${term}%,model.ilike.%${term}%`,
               )
               .limit(20)
-          : emptyRes;
-
-      const maintRes =
-        (typeFilter === 'all' || typeFilter === 'maintenance') && maintenanceEnabled
-          ? await supabase
+          : Promise.resolve(emptyRes),
+        wantType('building') && buildingsEnabled
+          ? supabase
+              .from('containers')
+              .select('id, name, code, description')
+              .in('farm_id', farmScope)
+              .eq('container_kind', 'building')
+              .or(`name.ilike.%${term}%,code.ilike.%${term}%,description.ilike.%${term}%`)
+              .limit(20)
+          : Promise.resolve(emptyRes),
+        wantType('maintenance') && maintenanceEnabled
+          ? supabase
               .from('maintenance_logs')
-              .select('id, title, description, equipment:equipment_id(nickname, unit_number), container:container_id(name, code)')
+              .select(
+                'id, title, description, log_type, equipment:equipment_id(nickname, unit_number), container:container_id(name, code)',
+              )
               .in('farm_id', farmScope)
               .or(`title.ilike.%${term}%,description.ilike.%${term}%`)
               .limit(20)
-          : emptyRes;
+          : Promise.resolve(emptyRes),
+      ]);
       if (!active) return;
 
-      if (equipRes.error) {
-        setError(equipRes.error.message);
-        setLoading(false);
-        return;
-      }
-      if (maintRes.error) {
-        setError(maintRes.error.message);
+      const firstError = equipRes.error || buildingRes.error || maintRes.error;
+      if (firstError) {
+        setError(firstError.message);
         setLoading(false);
         return;
       }
@@ -101,28 +144,45 @@ function SearchPage({ session }: Props) {
         .filter((row: any) => (!category ? true : row.category === category))
         .map((row: any) => ({
           id: row.id,
-          type: 'equipment',
+          type: 'equipment' as const,
           title: row.nickname || row.model || 'Equipment',
+          slug: toSlug(row.nickname?.trim() || row.id),
           subtitle: [row.category, row.make, row.model, row.unit_number ? `Unit ${row.unit_number}` : null]
             .filter(Boolean)
-            .join(' | '),
+            .join(' · '),
         }));
 
-      const maintResults: SearchResult[] = (maintRes.data ?? []).map((row: any) => {
-        const equip = Array.isArray(row.equipment) ? row.equipment[0] : row.equipment;
-        const container = Array.isArray(row.container) ? row.container[0] : row.container;
-        return {
-          id: row.id,
-          type: 'maintenance',
-          title: row.title,
-          subtitle:
-            equip?.unit_number
-              ? `Unit ${equip.unit_number}`
-              : equip?.nickname || container?.name || 'Maintenance',
-        };
-      });
+      const buildingResults: SearchResult[] = category
+        ? []
+        : (buildingRes.data ?? []).map((row: any) => ({
+            id: row.id,
+            type: 'building' as const,
+            title: row.name,
+            slug: toSlug(row.name || row.id),
+            subtitle: [row.code, row.description].filter(Boolean).join(' · ') || 'Building',
+          }));
 
-      setResults([...equipResults, ...maintResults]);
+      const maintResults: SearchResult[] = category
+        ? []
+        : (maintRes.data ?? []).map((row: any) => {
+            const equip = Array.isArray(row.equipment) ? row.equipment[0] : row.equipment;
+            const container = Array.isArray(row.container) ? row.container[0] : row.container;
+            return {
+              id: row.id,
+              type: 'maintenance' as const,
+              title: row.title,
+              subtitle: [
+                row.log_type === 'inspection' ? 'Inspection' : null,
+                equip?.nickname ||
+                  (equip?.unit_number ? `Unit ${equip.unit_number}` : null) ||
+                  container?.name,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+            };
+          });
+
+      setResults([...equipResults, ...buildingResults, ...maintResults]);
       setLoading(false);
     };
 
@@ -130,7 +190,22 @@ function SearchPage({ session }: Props) {
     return () => {
       active = false;
     };
-  }, [term, category, typeFilter, activeFarmId, dataScopeFarmIds, equipmentEnabled, maintenanceEnabled, navLoading]);
+  }, [
+    term,
+    category,
+    typeFilter,
+    farmScope,
+    equipmentEnabled,
+    maintenanceEnabled,
+    buildingsEnabled,
+    navLoading,
+  ]);
+
+  const openResult = (r: SearchResult) => {
+    if (r.type === 'equipment') navigate(`/equipment/${r.slug}`);
+    else if (r.type === 'building') navigate(`/buildings/${r.slug}`);
+    else navigate(`/maintenance/log/${r.id}`);
+  };
 
   return (
     <>
@@ -142,36 +217,40 @@ function SearchPage({ session }: Props) {
             style={{
               display: 'grid',
               gap: '0.75rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             }}
           >
             <label className="stack">
               <span>Keyword</span>
               <input
-                type="text"
+                type="search"
                 value={term}
-                onChange={(e) => setTerm(e.target.value)}
-                placeholder="Search equipment and maintenance logs"
+                onChange={(e) => {
+                  setTerm(e.target.value);
+                  setSearchParams(
+                    e.target.value ? { term: e.target.value } : {},
+                    { replace: true },
+                  );
+                }}
+                placeholder="Search equipment, buildings & logs"
               />
             </label>
             <label className="stack">
               <span>Type</span>
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
+                onChange={(e) => setTypeFilter(e.target.value as 'all' | ResultType)}
               >
-                <option value="all">All</option>
-                <option value="equipment">Equipment</option>
-                <option value="maintenance">Maintenance</option>
+                <option value="all">Everything</option>
+                {equipmentEnabled && <option value="equipment">Equipment</option>}
+                {buildingsEnabled && <option value="building">Buildings</option>}
+                {maintenanceEnabled && <option value="maintenance">Maintenance logs</option>}
               </select>
             </label>
             <label className="stack">
-              <span>Category (equipment)</span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="">All</option>
+              <span>Category</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">All categories</option>
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
@@ -184,30 +263,38 @@ function SearchPage({ session }: Props) {
 
         <div className="card stack">
           <h2>Results</h2>
-          {loading && <p>Loading...</p>}
-          {error && <p className="status">{error}</p>}
-          {!loading && !error && results.length === 0 && (
-            <p>Type a keyword to search equipment and maintenance.</p>
+          {loading && <p className="empty">Searching…</p>}
+          {error && <p className="status error">{error}</p>}
+          {!loading && !error && term.trim() && results.length === 0 && (
+            <p className="empty">Nothing matched “{term}”.</p>
+          )}
+          {!loading && !error && !term.trim() && (
+            <p className="empty">Type a keyword to search across the farm.</p>
           )}
           {!loading && !error && results.length > 0 && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Title</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.type}</td>
-                    <td>{r.title}</td>
-                    <td>{r.subtitle}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="list-rows">
+              {results.map((r) => (
+                <div
+                  key={`${r.type}-${r.id}`}
+                  className="list-row clickable"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => openResult(r)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') openResult(r);
+                  }}
+                >
+                  <div className="row-main">
+                    <div className="row-title">{r.title}</div>
+                    {r.subtitle && <div className="row-sub">{r.subtitle}</div>}
+                  </div>
+                  <div className="row-side">
+                    <span className="chip">{TYPE_LABEL[r.type]}</span>
+                    <span className="row-chevron">›</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

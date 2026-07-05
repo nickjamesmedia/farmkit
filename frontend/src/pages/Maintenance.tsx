@@ -13,6 +13,7 @@ type MaintenanceLogRow = {
   id: string;
   title: string;
   status: string | null;
+  log_type: string | null;
   maintenance_date: string | null;
   logged_at: string;
   person: {
@@ -39,6 +40,10 @@ function Maintenance({ session }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const navigate = useNavigate();
   const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading } = useNavData();
   const maintenanceEnabled = moduleEnabledByKey.maintenance ?? true;
@@ -55,12 +60,22 @@ function Maintenance({ session }: Props) {
     let query = supabase
       .from('maintenance_logs')
       .select(
-        'id, title, status, maintenance_date, logged_at, person:entered_by_person_id(first_name, last_name, display_name), equipment:equipment_id(nickname, unit_number), container:container_id(name, code)',
+        'id, title, status, log_type, maintenance_date, logged_at, person:entered_by_person_id(first_name, last_name, display_name), equipment:equipment_id(nickname, unit_number), container:container_id(name, code)',
       )
-      .order('logged_at', { ascending: false })
+      .order('logged_at', { ascending: sortDir === 'asc' })
       .range(nextOffset, nextOffset + PAGE_SIZE - 1);
     if (farmScope.length) {
       query = query.in('farm_id', farmScope);
+    }
+    if (statusFilter) {
+      query = query.eq('status', statusFilter);
+    }
+    if (typeFilter) {
+      query = query.eq('log_type', typeFilter);
+    }
+    if (searchText.trim()) {
+      const term = searchText.trim().replace(/[%_,]/g, ' ');
+      query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%`);
     }
 
     const { data, error: fetchError } = await query;
@@ -108,7 +123,7 @@ function Maintenance({ session }: Props) {
       return;
     }
     loadLogs(0, false);
-  }, [maintenanceEnabled, navLoading, activeFarmId, dataScopeFarmIds]);
+  }, [maintenanceEnabled, navLoading, activeFarmId, dataScopeFarmIds, statusFilter, typeFilter, sortDir, searchText]);
 
   const renderEquipment = (log: MaintenanceLogRow) => {
     if (log.equipment?.unit_number) {
@@ -154,6 +169,54 @@ function Maintenance({ session }: Props) {
               </Link>
             )}
           </div>
+          {maintenanceEnabled && (
+            <div
+              style={{
+                display: 'flex',
+                gap: '0.6rem',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="search"
+                placeholder="Search logs…"
+                aria-label="Search logs"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ flex: '2 1 200px' }}
+              />
+              <select
+                aria-label="Filter by type"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                style={{ flex: '1 1 140px', width: 'auto' }}
+              >
+                <option value="">All types</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="inspection">Inspection</option>
+              </select>
+              <select
+                aria-label="Filter by status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{ flex: '1 1 130px', width: 'auto' }}
+              >
+                <option value="">All statuses</option>
+                <option value="open">Open</option>
+                <option value="closed">Closed</option>
+              </select>
+              <select
+                aria-label="Sort order"
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value as 'desc' | 'asc')}
+                style={{ flex: '1 1 140px', width: 'auto' }}
+              >
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </select>
+            </div>
+          )}
           {loading && <p className="empty">Loading…</p>}
           {error && <p className="status error">{error}</p>}
           {!loading && !error && !maintenanceEnabled && !navLoading && (
@@ -186,6 +249,9 @@ function Maintenance({ session }: Props) {
                     </div>
                   </div>
                   <div className="row-side">
+                    {log.log_type === 'inspection' && (
+                      <span className="chip">Inspection</span>
+                    )}
                     {log.status && (
                       <span className={`chip ${log.status === 'open' ? 'open' : ''}`}>
                         {log.status}

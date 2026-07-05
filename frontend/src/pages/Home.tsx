@@ -106,14 +106,6 @@ function Home({ session }: Props) {
       <Nav session={session} email={session.user.email} pageTitle="Home" />
       <div className="app">
         <div className="tile-grid">
-          {maintenanceEnabled && (
-            <Link className="tile hero" to="/maintenance/add">
-              <span className="tile-label">+ Log Maintenance</span>
-              <span className="tile-sub">
-                Record work done on equipment or a building
-              </span>
-            </Link>
-          )}
           {equipmentEnabled && (
             <Link className="tile" to="/equipment">
               <span className="tile-label">Equipment</span>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, Link } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import './App.css';
 import { supabase } from './lib/supabaseClient';
@@ -24,8 +24,9 @@ import Team from './pages/Team';
 import Welcome from './pages/Welcome';
 import AdminActivity from './pages/AdminActivity';
 import RlsAudit from './pages/RlsAudit';
+import AppFooter from './components/AppFooter';
 
-const APP_VERSION = '0.0.8';
+const APP_VERSION = '0.1.0';
 
 function versionStage(version: string): 'Alpha' | 'Beta' | 'Stable' {
   const [majorStr, minorStr] = version.split('.');
@@ -66,13 +67,6 @@ function RequireRole({
   return <>{children}</>;
 }
 
-function VersionBadge() {
-  return (
-    <Link className="version-badge" to="/dev/rls">
-      farmkit v{APP_VERSION} {versionStage(APP_VERSION)}
-    </Link>
-  );
-}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -274,7 +268,7 @@ function App() {
               element={<Navigate to={session ? '/dashboard' : '/login'} replace />}
             />
           </Routes>
-          <VersionBadge />
+          <AppFooter session={session} appVersion={APP_VERSION} versionLabel={versionStage(APP_VERSION)} />
         </NavDataProvider>
       </BrowserRouter>
     </>

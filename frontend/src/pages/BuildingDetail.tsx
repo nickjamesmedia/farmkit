@@ -115,6 +115,9 @@ function BuildingDetail({ session }: Props) {
                {row.name} {row.code ? `(${row.code})` : ''}
              </h1>
              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link className="btn" to={`/maintenance/add?container_id=${row.id}`}>
+                + Add Log
+              </Link>
               <Link className="nav-btn" to="/buildings">
                 Back to Buildings
               </Link>

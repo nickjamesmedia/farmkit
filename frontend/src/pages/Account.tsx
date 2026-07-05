@@ -12,6 +12,7 @@ type Profile = {
   id: string;
   auth_user_id: string;
   display_name: string | null;
+  phone: string | null;
   default_farm_id: string | null;
   created_at: string;
   updated_at: string | null;
@@ -46,6 +47,7 @@ type RoleRow = {
 function Account({ session }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,7 @@ function Account({ session }: Props) {
       setError(null);
       const { data, error: err } = await supabase
         .from('user_profiles')
-        .select('id, auth_user_id, display_name, default_farm_id, created_at, updated_at')
+        .select('id, auth_user_id, display_name, phone, default_farm_id, created_at, updated_at')
         .eq('auth_user_id', session.user.id)
         .maybeSingle();
 
@@ -102,6 +104,7 @@ function Account({ session }: Props) {
       if (data) {
         setProfile(data as Profile);
         setDisplayName(data.display_name ?? '');
+        setPhone(data.phone ?? '');
       } else {
         setProfile(null);
         setDisplayName('');
@@ -226,6 +229,7 @@ function Account({ session }: Props) {
         id: profile?.id,
         auth_user_id: session.user.id,
         display_name: displayName.trim() || null,
+        phone: phone.trim() || null,
         default_farm_id: profile?.default_farm_id ?? null,
         updated_at: new Date().toISOString(),
       },
@@ -266,6 +270,17 @@ function Account({ session }: Props) {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Jane Doe"
+                    readOnly={isSharedAccount}
+                  />
+                </label>
+
+                <label className="stack">
+                  <span>Phone (optional)</span>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="555-123-4567"
                     readOnly={isSharedAccount}
                   />
                 </label>
