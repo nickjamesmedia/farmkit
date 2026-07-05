@@ -73,6 +73,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [categories, setCategories] = useState<string[]>([]);
   const [activeFarmId, setActiveFarmId] = useState<string | null>(null);
   const [category, setCategory] = useState('');
+  const [newCategoryMode, setNewCategoryMode] = useState(false);
   const [make, setMake] = useState('');
   const [model, setModel] = useState('');
   const [nickname, setNickname] = useState('');
@@ -159,6 +160,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
 
   const resetForm = () => {
     setCategory('');
+    setNewCategoryMode(false);
     setMake('');
     setModel('');
     setNickname('');
@@ -414,18 +416,42 @@ function EquipmentPage({ session }: EquipmentPageProps) {
               </label>
               <label className="stack">
                 <span>Category</span>
-                <input
-                  type="text"
-                  list="category-options"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  required
-                />
-                <datalist id="category-options">
+                {/* datalist type-ahead is unsupported on iOS Safari; use a
+                    plain select with an explicit add-new path instead */}
+                <select
+                  value={newCategoryMode ? '__new__' : category}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setNewCategoryMode(true);
+                      setCategory('');
+                    } else {
+                      setNewCategoryMode(false);
+                      setCategory(e.target.value);
+                    }
+                  }}
+                  required={!newCategoryMode}
+                >
+                  <option value="">Select a category</option>
                   {categories.map((cat) => (
-                    <option key={cat} value={cat} />
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
                   ))}
-                </datalist>
+                  {category && !newCategoryMode && !categories.includes(category) && (
+                    <option value={category}>{category}</option>
+                  )}
+                  <option value="__new__">+ Add a new category…</option>
+                </select>
+                {newCategoryMode && (
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="New category name"
+                    autoFocus
+                    required
+                  />
+                )}
               </label>
               <label className="stack">
                 <span>Make</span>
@@ -639,6 +665,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                 setShowDetails(false);
                 setEditingEquipment(selectedEquipment);
                 setCategory(selectedEquipment.category ?? '');
+                setNewCategoryMode(false);
                 setMake(selectedEquipment.make ?? '');
                 setModel(selectedEquipment.model ?? '');
                 setNickname(selectedEquipment.nickname ?? '');
