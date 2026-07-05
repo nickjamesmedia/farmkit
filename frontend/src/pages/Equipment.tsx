@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
-import { toSlug } from '../utils/slug';
+import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Equipment = {
   id: string;
@@ -271,7 +271,13 @@ function EquipmentPage({ session }: EquipmentPageProps) {
     setLogsLoading(false);
   };
 
-  const visibleEquipment = equipment.filter((item) => {
+  const sortedEquipment = [...equipment].sort((a, b) => {
+    const byName = (a.nickname ?? '').localeCompare(b.nickname ?? '');
+    if (byName !== 0) return byName;
+    return (Number(a.unit_number) || 0) - (Number(b.unit_number) || 0);
+  });
+
+  const visibleEquipment = sortedEquipment.filter((item) => {
     if (listCategory && item.category !== listCategory) return false;
     if (listSearch.trim()) {
       const needle = listSearch.toLowerCase();
@@ -696,8 +702,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
             type="button"
             onClick={() => {
                     if (!selectedEquipment) return;
-                    const slug = toSlug(selectedEquipment.nickname || selectedEquipment.id);
-                    navigate(`/equipment/${slug}`);
+                    navigate(`/equipment/${equipmentSlug(selectedEquipment)}`);
                   }}
                 >
                   Detailed view

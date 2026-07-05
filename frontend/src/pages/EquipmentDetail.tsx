@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
-import { toSlug } from '../utils/slug';
+import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Props = {
   session: Session;
@@ -112,6 +112,7 @@ function EquipmentDetail({ session }: Props) {
 
       if (candidates && candidates.length > 0) {
         found =
+          candidates.find((row) => equipmentSlug(row) === targetSlug) ??
           candidates.find((row) => toSlug(row.nickname) === targetSlug) ??
           candidates.find((row) => row.nickname?.toLowerCase() === normalizedName.toLowerCase()) ??
           candidates[0];
@@ -139,7 +140,10 @@ function EquipmentDetail({ session }: Props) {
         broadQuery = broadQuery.in('farm_id', farmScope);
         const { data: broad } = await broadQuery;
         if (broad && broad.length > 0) {
-          found = broad.find((row) => toSlug(row.nickname) === targetSlug) ?? null;
+          found =
+            broad.find((row) => equipmentSlug(row) === targetSlug) ??
+            broad.find((row) => toSlug(row.nickname) === targetSlug) ??
+            null;
         }
       }
 

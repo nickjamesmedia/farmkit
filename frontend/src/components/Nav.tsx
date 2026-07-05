@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
-import { toSlug } from '../utils/slug';
+import { equipmentSlug } from '../utils/slug';
 import ModuleGate from './ModuleGate';
 
 type NavProps = {
@@ -90,8 +90,9 @@ function Nav({ session, email, pageTitle }: NavProps) {
       } else {
         setSearchResults(
           data?.map((row) => {
-            const title = row.nickname || row.model || 'Equipment';
-            const slug = toSlug(row.nickname?.trim() || row.id);
+            const base = row.nickname || row.model || 'Equipment';
+            const title = row.unit_number ? `Unit ${row.unit_number} — ${base}` : base;
+            const slug = equipmentSlug(row);
             return {
               id: row.id,
               title,

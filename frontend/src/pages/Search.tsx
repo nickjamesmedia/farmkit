@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
-import { toSlug } from '../utils/slug';
+import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Props = {
   session: Session;
@@ -145,8 +145,10 @@ function SearchPage({ session }: Props) {
         .map((row: any) => ({
           id: row.id,
           type: 'equipment' as const,
-          title: row.nickname || row.model || 'Equipment',
-          slug: toSlug(row.nickname?.trim() || row.id),
+          title: row.unit_number
+            ? `Unit ${row.unit_number} — ${row.nickname || row.model || 'Equipment'}`
+            : row.nickname || row.model || 'Equipment',
+          slug: equipmentSlug(row),
           subtitle: [row.category, row.make, row.model, row.unit_number ? `Unit ${row.unit_number}` : null]
             .filter(Boolean)
             .join(' · '),
