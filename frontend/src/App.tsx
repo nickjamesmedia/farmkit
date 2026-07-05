@@ -26,7 +26,7 @@ import AdminActivity from './pages/AdminActivity';
 import RlsAudit from './pages/RlsAudit';
 import AppFooter from './components/AppFooter';
 
-const APP_VERSION = '0.1.0';
+const APP_VERSION = __APP_VERSION__;
 
 function versionStage(version: string): 'Alpha' | 'Beta' | 'Stable' {
   const [majorStr, minorStr] = version.split('.');
@@ -268,7 +268,7 @@ function App() {
               element={<Navigate to={session ? '/dashboard' : '/login'} replace />}
             />
           </Routes>
-          <AppFooter session={session} appVersion={APP_VERSION} versionLabel={versionStage(APP_VERSION)} />
+          <AppFooter session={session} appVersion={APP_VERSION} versionLabel={versionStage(APP_VERSION)} gitSha={__GIT_SHA__} builtAt={__BUILD_DATE__} />
         </NavDataProvider>
       </BrowserRouter>
     </>

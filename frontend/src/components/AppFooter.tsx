@@ -8,9 +8,11 @@ type Props = {
   session: Session | null;
   appVersion: string;
   versionLabel: string;
+  gitSha: string;
+  builtAt: string;
 };
 
-function AppFooter({ session, appVersion, versionLabel }: Props) {
+function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<'feedback' | 'bug'>('feedback');
   const [message, setMessage] = useState('');
@@ -44,7 +46,7 @@ function AppFooter({ session, appVersion, versionLabel }: Props) {
       message: message.trim(),
       page_path: pathname,
       page_title: document.title,
-      app_version: appVersion,
+      app_version: `${appVersion}+${gitSha}`,
       user_agent: navigator.userAgent.slice(0, 500),
     });
     if (err) {
@@ -66,7 +68,11 @@ function AppFooter({ session, appVersion, versionLabel }: Props) {
           Feedback / Report a bug
         </button>
       )}
-      <Link className="version-badge" to="/dev/rls">
+      <Link
+        className="version-badge"
+        to="/dev/rls"
+        title={`Build ${gitSha} · ${builtAt}`}
+      >
         Farmkit v{appVersion} {versionLabel}
       </Link>
 
