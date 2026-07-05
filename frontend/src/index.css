@@ -704,12 +704,41 @@ a.list-row:hover,
 }
 
 .modal {
+  position: relative;
   background: var(--surface);
   border-radius: var(--radius);
   padding: 1.25rem;
   width: min(520px, 100%);
   box-shadow: var(--shadow-2);
   margin: auto;
+}
+
+.modal-x {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  line-height: 1;
+  z-index: 1;
+}
+
+.modal-x:hover {
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+/* keep headings clear of the X */
+.modal > h2:first-of-type,
+.modal > .stack > h2:first-of-type,
+.modal > form > h2:first-of-type {
+  padding-right: 3rem;
 }
 
 /* ---------------------------------------------------------------------------

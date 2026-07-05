@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import ModalX from '../components/ModalX';
 
 type Props = {
   session: Session;
@@ -582,6 +583,7 @@ function Team({ session }: Props) {
       {showInvite && (
         <div className="modal-backdrop" onClick={() => setShowInvite(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={() => setShowInvite(false)} />
             <form className="stack" onSubmit={handleInvite}>
               <h2>Invite a user</h2>
               <p style={{ color: 'var(--muted)' }}>
@@ -651,6 +653,7 @@ function Team({ session }: Props) {
       {editMember && memberDraft && (
         <div className="modal-backdrop" onClick={() => setEditMember(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={() => setEditMember(null)} />
             <div className="stack">
               <h2>{memberLabel(editMember)}</h2>
               <p style={{ color: 'var(--muted)' }}>{editMember.email}</p>
@@ -728,6 +731,7 @@ function Team({ session }: Props) {
       {showAddPerson && (
         <div className="modal-backdrop" onClick={() => setShowAddPerson(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={() => setShowAddPerson(false)} />
             <form className="stack" onSubmit={handleAddPerson}>
               <h2>Add a person or servicer</h2>
               <label>
@@ -793,6 +797,7 @@ function Team({ session }: Props) {
       {editPerson && personDraft && (
         <div className="modal-backdrop" onClick={() => setEditPerson(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={() => setEditPerson(null)} />
             <div className="stack">
               <h2>{personLabel(editPerson)}</h2>
               <label>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ModalX from './ModalX';
 import { useLocation, Link } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
@@ -79,6 +80,7 @@ function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props
       {open && (
         <div className="modal-backdrop" onClick={close} style={{ zIndex: 1400 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={close} />
             {sent ? (
               <div className="stack">
                 <h2>Thanks — got it.</h2>

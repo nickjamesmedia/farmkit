@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import ModalX from '../components/ModalX';
 import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Props = {
@@ -351,6 +352,7 @@ function EquipmentDetail({ session }: Props) {
             onClick={(e) => e.stopPropagation()}
             style={{ width: 'min(520px, 100%)' }}
           >
+            <ModalX onClose={() => setEditing(false)} />
             <h2>Edit Equipment</h2>
             <form
               className="stack"

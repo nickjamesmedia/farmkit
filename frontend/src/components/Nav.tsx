@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import { equipmentSlug } from '../utils/slug';
 import ModuleGate from './ModuleGate';
+import { BackClose } from './ModalX';
 
 type NavProps = {
   session?: Session;
@@ -287,6 +288,7 @@ function Nav({ session, email, pageTitle }: NavProps) {
             aria-label="Menu"
             onClick={(e) => e.stopPropagation()}
           >
+            <BackClose onClose={closeMenu} />
             <div
               style={{
                 display: 'flex',

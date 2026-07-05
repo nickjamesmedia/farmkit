@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import ModalX from '../components/ModalX';
 import { toSlug } from '../utils/slug';
 
 type FarmErp = {
@@ -211,6 +212,7 @@ function Locations({ session }: Props) {
       {showAdd && primaryFarm && (
         <div className="modal-backdrop" onClick={() => setShowAdd(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <ModalX onClose={() => setShowAdd(false)} />
             <form className="stack" onSubmit={handleAddLocation}>
               <h2>Add a location</h2>
               <p style={{ color: 'var(--muted)' }}>
@@ -253,6 +255,7 @@ function Locations({ session }: Props) {
           onClick={(e) => e.stopPropagation()}
           style={{ width: 'min(560px, 100%)' }}
         >
+          <ModalX onClose={() => setQuickview(null)} />
           {(() => {
             const details = Array.isArray(quickview.farm_details)
               ? quickview.farm_details[0]

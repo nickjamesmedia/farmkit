@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import ModalX from '../components/ModalX';
 import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Equipment = {
@@ -409,6 +410,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
               e.stopPropagation();
             }}
           >
+            <ModalX onClose={() => setShowForm(false)} />
             <h2>Add Equipment</h2>
             <form className="stack" onSubmit={handleSubmit}>
               <label className="stack">
@@ -568,6 +570,10 @@ function EquipmentPage({ session }: EquipmentPageProps) {
               e.stopPropagation();
             }}
           >
+            <ModalX onClose={() => {
+            setShowDetails(false);
+            setSelectedEquipment(null);
+          }} />
             <h2>{selectedEquipment.nickname || 'Equipment details'}</h2>
             <div className="stack">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>

@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
+import ModalX from '../components/ModalX';
 import { toSlug } from '../utils/slug';
 
 type Building = {
@@ -289,6 +290,7 @@ function Buildings({ session }: Props) {
             onClick={(e) => e.stopPropagation()}
             style={{ width: 'min(560px, 100%)' }}
           >
+            <ModalX onClose={() => setQuickview(null)} />
           <h2>
             {quickview.name} {quickview.code ? `(${quickview.code})` : ''}
           </h2>
@@ -388,6 +390,11 @@ function Buildings({ session }: Props) {
           }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 100%)' }}>
+            <ModalX onClose={() => {
+            if (saving) return;
+            setShowForm(false);
+            resetForm();
+          }} />
             <h2>{editing ? 'Edit Building' : 'Add Building'}</h2>
             <form className="stack" onSubmit={handleSubmit}>
               {farms.length > 1 && (
