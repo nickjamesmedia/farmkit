@@ -117,3 +117,31 @@ pattern:
 
 Equipment, Buildings, Locations, and Team all follow this pattern — keep new
 modules consistent with it.
+
+## Git & deploy workflow (agents MUST follow)
+
+Trunk-based development. `main` is the only branch Netlify builds — every
+push to `main` that touches `frontend/` costs a build and ships to
+**production (farmkit.app)**. Treat it accordingly.
+
+1. **Never do WIP on `main`.** Branch per piece of work:
+   `feat/<slug>` or `fix/<slug>` (e.g. `fix/modal-focus`).
+2. **Commit freely on branches** — commits are free; builds are not.
+   Push branches to GitHub as you go (offsite backup; non-main pushes do
+   not build as long as Netlify branch deploys stay off).
+3. **Test on the dev stack, not prod.** `./dev-deploy.sh` (repo root)
+   builds the current checkout against the DEV Supabase project
+   ("FarmKit Dev 26") and serves it at https://dev.farmkit.app
+   (Tailnet-only, container `farmkit_dev`, 10.0.0.148:8789). Iterate there.
+4. **Ship = merge to `main` and push.** One build, prod updates, the
+   version badge auto-increments (patch = commits since the newest
+   `vX.Y.Z` tag; tag a new minor for milestones). Verify the live badge
+   after deploying. Delete merged branches.
+5. **Databases:** schema changes go in `supabase/migrations/NNNN_*.sql`,
+   applied to DEV first, then to prod when the frontend ships. Never
+   point dev builds at prod: prod env lives in Netlify, dev env in
+   `frontend/.env.devfarm.local` (gitignored). Never commit keys, even
+   publishable ones, for the dev project.
+6. **Docs-only pushes to `main` are free** (Netlify skips commits that
+   don't touch `frontend/`). An empty commit does NOT trigger a rebuild —
+   use Netlify's "Trigger deploy" button for a no-change redeploy.
