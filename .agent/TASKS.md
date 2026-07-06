@@ -8,25 +8,31 @@
 
 ## Current (ordered)
 
-- [ ] **Finish Team invite backend config** (set Edge Function secret `FARMKIT_INVITE_REDIRECT_URL=https://farmkit.app/welcome`; confirm Supabase Auth redirect allow-list includes `https://farmkit.app/welcome`)
-- [ ] **Manual smoke test Team flow** (admin invite, invitee set password, manager People-only access, non-admin blocked from account access)
+- [ ] **Final pre-beta manual testing + refinement pass** (Nick driving on dev.farmkit.app, 2026-07-06; bugs/UX findings logged to NJMIT kanban; fixes via feat/fix branches -> merge main)
+- [ ] **Manual smoke test Team flow** (admin invite, invitee set password, manager People-only access, non-admin blocked from account access; test accounts manager.test@ / worker.test@farmkit.app exist)
+- [ ] **Supabase Auth dashboard config (Nick, dashboard-only)** (Site URL + `/welcome` redirect allow-list + custom SMTP; invite EMAILS blocked until done — invite function itself is live and verified)
 - [ ] **Add DB-level admin child-farm enrollment** (schema helper + triggers + backfill; ensure revocation on demotion/removal)
+- [ ] **Grant CP Farms access (v0.1 beta launch)** (after testing pass: creds handoff, sheet cutover decision + optional seed top-up via generate_farmkit_seed.py)
 
-- [ ] **Apply v0.1 schema + dev RLS in Supabase** (`supabase/schema.sql`, `supabase/rls_policies_dev.sql`) and run ERP data migration if needed
+Deferred post-beta (single-tenant CP Farms beta doesn't need them):
 
-- [ ] **Manual verification pass (v0.1 beta readiness)** (parent admin, child user, shared account; module toggles + ERP visibility)
-
-- [ ] **Frontend cleanup + manual testing pass** (post-deploy wiring)
-
-- [ ] **Define v0.1 beta page list + IA** (target screens, flows, and nav)
-
-- [ ] **Revise v0.1 beta data model** (tables, relationships, and schema deltas)
-
-
-
-- [ ] **Plan: hostname-based multi-tenant routing (subdomain-first)** (`P-20260202-001`, required before v0.1 beta launch)
+- [ ] **Hostname-based multi-tenant routing** (`P-20260202-001`)
+- [ ] **Move RLS security-definer helper fns to private schema** (Supabase advisor WARNs; fine for single-tenant)
+- [ ] **Tests + CI**
 
 ## Done
+
+- [x] **Prod Supabase schema + hardened RLS applied** (migrations 0001–0005 on project `rjhffpxijysfuusriqwg`: schema baseline, prod RLS, search_path pins, team_invites, contacts/servicers/log_type/feedback) (2026-07-05)
+
+- [x] **CP Farms data migration — all 9 tracker sheets** (152 equipment, 29 people, 395 logs, 8 categories; idempotent uuid5 seed) (2026-07-05)
+
+- [x] **v0.1.1: Nick's beta review notes implemented** (feedback widget, Team redesign with People & Servicers, Farm Setup fixes, building logs + log_type, Search/filters/sort) (2026-07-05)
+
+- [x] **v0.1 beta shipped to production** (live at farmkit.app via Netlify CI from `main`; greyscale design system; git-derived version badge) (2026-07-03 → 2026-07-06)
+
+- [x] **v0.1 page list / IA and data model** (shipped as built: 20 pages, tabular page -> quickview modal -> detail page pattern per AGENTS.md; schema in migrations) (2026-07-05)
+
+- [x] **Dev workflow established** (`./dev-deploy.sh` -> nginx `farmkit_dev` -> dev.farmkit.app, Tailnet-private; trunk-based rules in AGENTS.md; Netlify production branch = main) (2026-07-06)
 
 - [x] **Deploy Team invite migration + Edge Function** (`team_invites` migration applied to Supabase project `rjhffpxijysfuusriqwg`; `invite-team-member` version 1 active with JWT verification) (2026-07-04)
 
@@ -181,6 +187,8 @@
 
 
 ## Notes (append-only)
+
+- 2026-07-06: TASKS.md reconciled with reality — the Current list was frozen at ~2026-02-08 while the whole v0.1 ship happened (see git log / .agent/CONTEXT.md). Operational to-dos (creds to KeePass, Netlify/domain clicks, migration-report review) live on the NJMIT kanban, not here; this file tracks dev-side work only.
 
 - 2026-07-04: Supabase/Netlify plugins were added and rechecked. Supabase migration/function tools work, but secret/Auth redirect tools are still unavailable and CLI auth is still missing. Netlify project access works; public Vite Supabase env vars were upserted, but the Netlify MCP deploy upload failed with `500 Internal Server Error`; a clean-source retry also stalled during upload and was interrupted. Production is unchanged on deploy `6a486073c4045c0dadc05c39`.
 
