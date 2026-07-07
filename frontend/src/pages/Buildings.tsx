@@ -258,7 +258,7 @@ function Buildings({ session }: Props) {
             )}
           </div>
           <p style={{ color: 'var(--muted)' }}>
-            Bins, sheds, shops and other structures — each belongs to a location,
+            Bins, sheds, shops and other structures — each belongs to a sub-farm,
             and maintenance or inspections can be logged against it.
           </p>
           {loading && <p>Loading...</p>}
@@ -274,7 +274,7 @@ function Buildings({ session }: Props) {
                   <th>Name</th>
                   <th>Code</th>
                   <th>Type</th>
-                  <th>Location</th>
+                  <th>Sub-farm</th>
                 </tr>
               </thead>
               <tbody>{rows.map(renderRow)}</tbody>
@@ -304,10 +304,10 @@ function Buildings({ session }: Props) {
                   <>
               <div><strong>Type:</strong> {quickview.container_kind || '-'}</div>
               <div>
-                <strong>Location:</strong>{' '}
+                <strong>Sub-farm:</strong>{' '}
                 {farm?.name ? (
                   <Link
-                    to={`/locations/${toSlug(
+                    to={`/sub-farms/${toSlug(
                       farm.slug ?? farm.name ?? '',
                     )}`}
                   >
@@ -399,7 +399,7 @@ function Buildings({ session }: Props) {
             <form className="stack" onSubmit={handleSubmit}>
               {farms.length > 1 && (
                 <label className="stack">
-                  <span>Location</span>
+                  <span>Sub-farm</span>
                   <select value={farmId} onChange={(e) => setFarmId(e.target.value)} disabled={saving}>
                     {farms.map((f) => (
                       <option key={f.id} value={f.id}>

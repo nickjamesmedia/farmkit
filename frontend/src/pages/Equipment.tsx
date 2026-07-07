@@ -369,7 +369,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
           <th>Category</th>
           <th>Make</th>
           <th>Model</th>
-          <th>Location</th>
+          <th>Sub-farm</th>
           <th>Building</th>
                 </tr>
               </thead>
@@ -600,10 +600,10 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                   <strong>License class:</strong> {selectedEquipment.license_class ?? '-'}
                 </div>
                 <div>
-                  <strong>Location:</strong>{' '}
+                  <strong>Sub-farm:</strong>{' '}
                   {selectedEquipment.farm?.name ? (
                     <Link
-                      to={`/locations/${toSlug(
+                      to={`/sub-farms/${toSlug(
                         selectedEquipment.farm.slug ??
                           selectedEquipment.farm.name ??
                           '',

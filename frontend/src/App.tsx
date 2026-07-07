@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import './App.css';
 import { supabase } from './lib/supabaseClient';
@@ -15,8 +15,8 @@ import SearchPage from './pages/Search';
 import Maintenance from './pages/Maintenance';
 import MaintenanceLogDetail from './pages/MaintenanceLogDetail';
 import EquipmentDetail from './pages/EquipmentDetail';
-import Locations from './pages/Locations';
-import LocationDetail from './pages/LocationDetail';
+import SubFarms from './pages/SubFarms';
+import SubFarmDetail from './pages/SubFarmDetail';
 import Buildings from './pages/Buildings';
 import BuildingDetail from './pages/BuildingDetail';
 import AdminTools from './pages/AdminTools';
@@ -67,6 +67,11 @@ function RequireRole({
   return <>{children}</>;
 }
 
+
+function LegacySubFarmRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  return <Navigate to={`/sub-farms/${slug ?? ''}`} replace />;
+}
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -132,18 +137,18 @@ function App() {
               }
             />
             <Route
-              path="/locations"
+              path="/sub-farms"
               element={
                 <RequireAuth session={session}>
-                  <Locations session={session as Session} />
+                  <SubFarms session={session as Session} />
                 </RequireAuth>
               }
             />
             <Route
-              path="/locations/:slug"
+              path="/sub-farms/:slug"
               element={
                 <RequireAuth session={session}>
-                  <LocationDetail session={session as Session} />
+                  <SubFarmDetail session={session as Session} />
                 </RequireAuth>
               }
             />
@@ -223,6 +228,8 @@ function App() {
                 </RequireAuth>
               }
             />
+            <Route path="/locations" element={<Navigate to="/sub-farms" replace />} />
+            <Route path="/locations/:slug" element={<LegacySubFarmRedirect />} />
             <Route path="/users" element={<Navigate to="/team" replace />} />
             <Route path="/people" element={<Navigate to="/team" replace />} />
             <Route

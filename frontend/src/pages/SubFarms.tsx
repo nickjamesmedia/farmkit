@@ -16,7 +16,7 @@ type FarmErp = {
   has_chemical_storage: boolean | null;
 };
 
-type Location = {
+type SubFarm = {
   id: string;
   name: string;
   slug: string;
@@ -46,11 +46,11 @@ type Props = {
   session: Session;
 };
 
-function Locations({ session }: Props) {
-  const [rows, setRows] = useState<Location[]>([]);
+function SubFarms({ session }: Props) {
+  const [rows, setRows] = useState<SubFarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quickview, setQuickview] = useState<Location | null>(null);
+  const [quickview, setQuickview] = useState<SubFarm | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
@@ -61,12 +61,12 @@ function Locations({ session }: Props) {
   const erpEnabled = moduleEnabledByKey.erp ?? true;
   const isAdmin = roleKey === 'admin';
 
-  // the primary (top-level) farm is the only valid parent for a new location
+  // the primary (top-level) farm is the only valid parent for a new sub-farm
   const primaryFarm = rows.find((row) => !row.parent_farm_id) ?? null;
 
   const groupedRows = (() => {
     const byId = new Map(rows.map((row) => [row.id, row]));
-    const childrenByParent = new Map<string, Location[]>();
+    const childrenByParent = new Map<string, SubFarm[]>();
 
     rows.forEach((row) => {
       if (row.parent_farm_id) {
@@ -82,7 +82,7 @@ function Locations({ session }: Props) {
 
     parents.sort((a, b) => a.name.localeCompare(b.name));
 
-    const flattened: { row: Location; depth: number }[] = [];
+    const flattened: { row: SubFarm; depth: number }[] = [];
     parents.forEach((parent) => {
       flattened.push({ row: parent, depth: 0 });
       const children = (childrenByParent.get(parent.id) ?? []).sort((a, b) =>
@@ -94,7 +94,7 @@ function Locations({ session }: Props) {
     return flattened;
   })();
 
-  const loadLocations = async () => {
+  const loadSubFarms = async () => {
     const { data, error: err } = await supabase
       .from('farms')
       .select(
@@ -106,14 +106,14 @@ function Locations({ session }: Props) {
       setRows([]);
     } else {
       setError(null);
-      setRows((data as Location[]) ?? []);
+      setRows((data as SubFarm[]) ?? []);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     setLoading(true);
-    loadLocations();
+    loadSubFarms();
   }, [session.user.id]);
 
   // Farm Setup links here with ?add=1 to jump straight into the add modal
@@ -125,7 +125,7 @@ function Locations({ session }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, isAdmin, primaryFarm]);
 
-  const handleAddLocation = async (event: React.FormEvent) => {
+  const handleAddSubFarm = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = newName.trim();
     if (!name || !primaryFarm) return;
@@ -139,18 +139,18 @@ function Locations({ session }: Props) {
     if (err) {
       setAddError(
         err.message.includes('farms_slug_key')
-          ? 'A location with a very similar name already exists.'
+          ? 'A sub-farm with a very similar name already exists.'
           : err.message,
       );
     } else {
       setNewName('');
       setShowAdd(false);
-      await loadLocations();
+      await loadSubFarms();
     }
     setAddSaving(false);
   };
 
-  const renderRow = (loc: Location, depth: number) => {
+  const renderRow = (loc: SubFarm, depth: number) => {
     const details = Array.isArray(loc.farm_details)
       ? loc.farm_details[0]
       : loc.farm_details;
@@ -172,26 +172,26 @@ function Locations({ session }: Props) {
 
   return (
     <>
-      <Nav session={session} email={session.user.email} pageTitle="Locations" />
+      <Nav session={session} email={session.user.email} pageTitle="Sub-farms" />
       <div className="app">
         <div className="card stack">
           <div className="page-head">
-            <h1>Locations</h1>
+            <h1>Sub-farms</h1>
             {isAdmin && primaryFarm && (
               <button type="button" onClick={() => setShowAdd(true)}>
-                + Add location
+                + Add sub-farm
               </button>
             )}
           </div>
           <p style={{ color: 'var(--muted)' }}>
-            Locations are separate farms, yards, or properties that have their own
-            address. Don’t add buildings here — buildings (bins, sheds, shops) live
-            on the Buildings page and belong to a location.
+            Sub-farms are separate farm sites, yards, or properties under your main
+            farm, each with its own address. Don’t add buildings here — buildings
+            (bins, sheds, shops) live on the Buildings page and belong to a sub-farm.
           </p>
           {loading && <p className="empty">Loading…</p>}
           {error && <p className="status error">{error}</p>}
           {!loading && !error && rows.length === 0 && (
-            <p className="empty">No locations yet.</p>
+            <p className="empty">No sub-farms yet.</p>
           )}
           {!loading && !error && rows.length > 0 && (
             <table>
@@ -213,15 +213,15 @@ function Locations({ session }: Props) {
         <div className="modal-backdrop" onClick={() => setShowAdd(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <ModalX onClose={() => setShowAdd(false)} />
-            <form className="stack" onSubmit={handleAddLocation}>
-              <h2>Add a location</h2>
+            <form className="stack" onSubmit={handleAddSubFarm}>
+              <h2>Add a sub-farm</h2>
               <p style={{ color: 'var(--muted)' }}>
-                A location is a separate yard or site under{' '}
+                A sub-farm is a separate yard or site under{' '}
                 <strong>{primaryFarm.name}</strong>. Equipment, buildings, and
-                logs can be tracked per location.
+                logs can be tracked per sub-farm.
               </p>
               <label>
-                <span>Location name</span>
+                <span>Sub-farm name</span>
                 <input
                   type="text"
                   value={newName}
@@ -233,7 +233,7 @@ function Locations({ session }: Props) {
               {addError && <p className="status error">{addError}</p>}
               <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                 <button type="submit" disabled={addSaving}>
-                  {addSaving ? 'Adding…' : 'Add location'}
+                  {addSaving ? 'Adding…' : 'Add sub-farm'}
                 </button>
                 <button
                   type="button"
@@ -316,7 +316,7 @@ function Locations({ session }: Props) {
                 <button
                   type="button"
                   onClick={() => {
-                  navigate(`/locations/${quickview.slug || toSlug(quickview.name)}`);
+                  navigate(`/sub-farms/${quickview.slug || toSlug(quickview.name)}`);
                   setQuickview(null);
                 }}
               >
@@ -337,4 +337,4 @@ function Locations({ session }: Props) {
   );
 }
 
-export default Locations;
+export default SubFarms;

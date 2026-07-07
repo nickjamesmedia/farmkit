@@ -127,10 +127,10 @@ function BuildingDetail({ session }: Props) {
             <div><strong>Code:</strong> {row.code || '-'}</div>
             <div><strong>Type:</strong> {row.container_kind || '-'}</div>
             <div>
-              <strong>Location:</strong>{' '}
+              <strong>Sub-farm:</strong>{' '}
               {(Array.isArray(row.farm) ? row.farm[0] : row.farm)?.name ? (
                 <Link
-                  to={`/locations/${toSlug(
+                  to={`/sub-farms/${toSlug(
                     (Array.isArray(row.farm) ? row.farm[0] : row.farm)?.slug ??
                       (Array.isArray(row.farm) ? row.farm[0] : row.farm)?.name ??
                       '',

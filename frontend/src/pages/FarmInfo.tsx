@@ -277,7 +277,7 @@ function FarmInfo({ session }: Props) {
               </div>
 
               <div className="stack">
-                <h2>Child farm locations</h2>
+                <h2>Sub-farms</h2>
                 {childFarms.length === 0 && (
                   <p>No child farms assigned to your account.</p>
                 )}

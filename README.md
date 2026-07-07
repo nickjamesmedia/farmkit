@@ -35,7 +35,7 @@ Project docs live in `docs/` and `.agent/`:
 
 ## Core features (current)
 - Admin/manager/user roles with farm memberships  
-- Equipment, locations, and building tracking  
+- Equipment, sub-farm, and building tracking  
 - Maintenance logging with per-log detail page  
 - User management (memberships, roles, account mode)  
 - Search and filter equipment  
@@ -57,7 +57,7 @@ See `docs/dev/data_model.md`.
 - `/account`: account settings
 - `/farm`: read-only farm info
 - `/admin/farm`: farm setup (admin)
-- `/locations`, `/buildings`: location/building lists
+- `/sub-farms`, `/buildings`: sub-farm/building lists (legacy `/locations` redirects)
 
 ---
 

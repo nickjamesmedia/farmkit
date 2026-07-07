@@ -540,8 +540,8 @@ function FarmSetup({ session }: Props) {
         <div className="card stack">
           <div className="page-head">
             <h1>Farm Setup</h1>
-            <Link className="btn secondary" to="/locations?add=1">
-              + Add farm / location
+            <Link className="btn secondary" to="/sub-farms?add=1">
+              + Add sub-farm
             </Link>
           </div>
           <p style={{ color: 'var(--muted)' }}>

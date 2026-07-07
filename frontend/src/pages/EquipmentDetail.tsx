@@ -271,10 +271,10 @@ function EquipmentDetail({ session }: Props) {
             <div><strong>Fuel filter:</strong> {equipment.fuel_filter_number ?? '-'}</div>
             <div><strong>Air filter:</strong> {equipment.air_filter_number ?? '-'}</div>
             <div>
-              <strong>Location:</strong>{' '}
+              <strong>Sub-farm:</strong>{' '}
               {equipment.farm?.name ? (
                 <Link
-                  to={`/locations/${toSlug(
+                  to={`/sub-farms/${toSlug(
                     equipment.farm.slug ?? equipment.farm.name ?? '',
                   )}`}
                 >

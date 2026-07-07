@@ -334,8 +334,8 @@ function Nav({ session, email, pageTitle }: NavProps) {
                 Search
               </Link>
             )}
-            <Link className="menu-item" to="/locations" onClick={closeMenu}>
-              Locations
+            <Link className="menu-item" to="/sub-farms" onClick={closeMenu}>
+              Sub-farms
             </Link>
             <Link className="menu-item" to="/farm" onClick={closeMenu}>
               Farm Info

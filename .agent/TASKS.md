@@ -22,6 +22,8 @@ Deferred post-beta (single-tenant CP Farms beta doesn't need them):
 
 ## Done
 
+- [x] **Rename Locations -> Sub-farms across UI/routes/docs** (branch feat/subfarms-rename; legacy /locations redirects; staged on dev.farmkit.app for Nick's eyeball before merge) (2026-07-06)
+
 - [x] **Prod Supabase schema + hardened RLS applied** (migrations 0001–0005 on project `rjhffpxijysfuusriqwg`: schema baseline, prod RLS, search_path pins, team_invites, contacts/servicers/log_type/feedback) (2026-07-05)
 
 - [x] **CP Farms data migration — all 9 tracker sheets** (152 equipment, 29 people, 395 logs, 8 categories; idempotent uuid5 seed) (2026-07-05)

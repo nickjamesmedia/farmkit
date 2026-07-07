@@ -18,6 +18,7 @@
     * `name` (text)
     * `slug` (text, unique per deployment)
     * `parent_farm_id` (uuid, fk → farms, nullable) *(allows parent/child farm hierarchy)*
+      *(Terminology, 2026-07-06: child farms are called **"Sub-farms"** in all user-facing UI/docs — never "locations", which is reserved for where equipment/buildings physically live.)*
     * `timezone` (text, optional; default America/Edmonton)
     * `status` (text: active/archived)
     * `created_at` (timestamptz)

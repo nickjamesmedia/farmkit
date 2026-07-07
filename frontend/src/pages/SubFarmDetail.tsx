@@ -17,7 +17,7 @@ type FarmErp = {
   has_chemical_storage: boolean | null;
 };
 
-type Location = {
+type SubFarm = {
   id: string;
   name: string;
   slug: string;
@@ -50,9 +50,9 @@ type Location = {
   farm_erp?: FarmErp | FarmErp[] | null;
 };
 
-function LocationDetail({ session }: Props) {
+function SubFarmDetail({ session }: Props) {
   const { slug } = useParams<{ slug: string }>();
-  const [row, setRow] = useState<Location | null>(null);
+  const [row, setRow] = useState<SubFarm | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { moduleEnabledByKey } = useNavData();
@@ -81,7 +81,7 @@ function LocationDetail({ session }: Props) {
         data?.find((d) => toSlug(d.name) === targetSlug) ??
         data?.[0] ??
         null;
-      setRow(match as Location | null);
+      setRow(match as SubFarm | null);
     };
     load();
     return () => {
@@ -92,12 +92,12 @@ function LocationDetail({ session }: Props) {
   if (!row) {
     return (
       <>
-        <Nav session={session} email={session.user.email} pageTitle="Location" />
+        <Nav session={session} email={session.user.email} pageTitle="Sub-farm" />
         <div className="app">
           <div className="card">
-            <p className="status">{error || 'Location not found'}</p>
-            <button type="button" onClick={() => navigate('/locations')}>
-              Back to Locations
+            <p className="status">{error || 'Sub-farm not found'}</p>
+            <button type="button" onClick={() => navigate('/sub-farms')}>
+              Back to Sub-farms
             </button>
           </div>
         </div>
@@ -107,7 +107,7 @@ function LocationDetail({ session }: Props) {
 
   return (
     <>
-      <Nav session={session} email={session.user.email} pageTitle="Location" />
+      <Nav session={session} email={session.user.email} pageTitle="Sub-farm" />
       <div className="app">
         <div className="card stack">
           <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -115,8 +115,8 @@ function LocationDetail({ session }: Props) {
               {row.name} {row.slug ? `(${row.slug})` : ''}
             </h1>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <Link className="nav-btn" to="/locations">
-                Back to Locations
+              <Link className="nav-btn" to="/sub-farms">
+                Back to Sub-farms
               </Link>
             </div>
           </div>
@@ -166,4 +166,4 @@ function LocationDetail({ session }: Props) {
   );
 }
 
-export default LocationDetail;
+export default SubFarmDetail;

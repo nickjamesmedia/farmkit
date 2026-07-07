@@ -4,6 +4,11 @@
 
 > Add new decisions at the top. Do not rewrite history; append corrections as new entries.
 
+## 2026-07-06 - Rename "Locations" to "Sub-farms" (child farms) in all user-facing surfaces
+**Context:** The Locations page lists child farms (`farms.parent_farm_id`) — separate farm sites under the primary account — but "location" also describes where equipment/buildings physically live (containers, home/current location). Two concepts sharing one word confused users (raised by Nick during beta review).
+**Decision:** User-facing term for child farms is **"Sub-farms"** (Nick's pick over Farm sites/Yards/Farms). Routes move to `/sub-farms` and `/sub-farms/:slug` with legacy `/locations` redirects (same pattern as `/users` -> `/team`). Pages renamed `SubFarms.tsx` / `SubFarmDetail.tsx`. Equipment/Buildings "Location" columns and labels that point at the owning farm now read "Sub-farm". DB stays untouched (`farms`, `parent_farm_id` already correct); "location" remains reserved for the physical-place sense (containers, addresses).
+**Consequences:** Any saved bookmarks to `/locations*` still work via redirects. Docs and the farmkit.ca marketing site updated to match. Marketing copy for buildings/storage avoids the word "locations" for farm sites.
+
 ## 2026-07-03 - Merge People and account access into Team with Supabase Edge invites
 **Context:** The old `/users` page required raw Supabase Auth user IDs, and `/people` separately managed non-login attribution names. Beta onboarding needs one farmer-friendly Team surface and secure invite-by-email.
 **Decision:** Add `/team` as the primary Team page. Admins manage account access and invites there; managers can manage the People list but cannot invite or change login access. User email visibility is handled by `public.farmkit_team_members(uuid)`, and invites are sent through the `invite-team-member` Supabase Edge Function with service-role use limited to the server.
