@@ -4,21 +4,34 @@ import { useEffect, useRef } from 'react';
 // Mounting pushes a history entry; Back pops it and we close. Closing any
 // other way (X, Cancel, backdrop tap) consumes the pushed entry so the Back
 // button still leaves the page afterwards.
+//
+// The pop is deferred a tick and skipped when another overlay mounted in the
+// meantime: when one modal closes and another opens in the same tap, a
+// synchronous history.back() would land its popstate on the new modal and
+// close it too. The new modal adopts the entry that is already on top instead.
+let mountedOverlays = 0;
+
 export function useCloseOnBack(onClose: () => void) {
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
-    window.history.pushState(
-      { ...(window.history.state ?? {}), farmkitOverlay: true },
-      '',
-    );
+    mountedOverlays += 1;
+    if (!window.history.state?.farmkitOverlay) {
+      window.history.pushState(
+        { ...(window.history.state ?? {}), farmkitOverlay: true },
+        '',
+      );
+    }
     const onPop = () => closeRef.current();
     window.addEventListener('popstate', onPop);
     return () => {
       window.removeEventListener('popstate', onPop);
-      if (window.history.state?.farmkitOverlay) {
-        window.history.back();
-      }
+      mountedOverlays -= 1;
+      window.setTimeout(() => {
+        if (mountedOverlays === 0 && window.history.state?.farmkitOverlay) {
+          window.history.back();
+        }
+      }, 0);
     };
   }, []);
 }

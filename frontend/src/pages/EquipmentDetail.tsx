@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
 import Nav from '../components/Nav';
-import ModalX from '../components/ModalX';
 import { toSlug, equipmentSlug } from '../utils/slug';
 
 type Props = {
@@ -48,8 +47,11 @@ function EquipmentDetail({ session }: Props) {
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editing = searchParams.get('edit') === '1';
   const [form, setForm] = useState<Partial<Equipment>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { activeFarmId, dataScopeFarmIds, moduleEnabledByKey, loading: navLoading, roleKey } = useNavData();
   const equipmentEnabled = moduleEnabledByKey.equipment ?? true;
@@ -184,6 +186,56 @@ function EquipmentDetail({ session }: Props) {
     };
   }, [decoded, activeFarmId, dataScopeFarmIds, equipmentEnabled, maintenanceEnabled, navLoading]);
 
+  const setEditing = (on: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (on) next.set('edit', '1');
+    else next.delete('edit');
+    setForm({});
+    setSaveError(null);
+    setSearchParams(next, { replace: true });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!equipment || !canManageEquipment) return;
+    setSaving(true);
+    setSaveError(null);
+    const payload = {
+      nickname: form.nickname ?? equipment.nickname,
+      category: form.category ?? equipment.category,
+      make: form.make ?? equipment.make,
+      model: form.model ?? equipment.model,
+      unit_number: form.unit_number ?? equipment.unit_number,
+      vin_sn: form.vin_sn ?? equipment.vin_sn,
+      year: form.year ?? equipment.year,
+      year_of_purchase: form.year_of_purchase ?? equipment.year_of_purchase,
+      license_class: form.license_class ?? equipment.license_class,
+      next_service_at: form.next_service_at ?? equipment.next_service_at,
+      cvip_expires_at: form.cvip_expires_at ?? equipment.cvip_expires_at,
+      insurance_expires_at: form.insurance_expires_at ?? equipment.insurance_expires_at,
+      oil_filter_number: form.oil_filter_number ?? equipment.oil_filter_number,
+      fuel_filter_number: form.fuel_filter_number ?? equipment.fuel_filter_number,
+      air_filter_number: form.air_filter_number ?? equipment.air_filter_number,
+    };
+    const { error: updateErr } = await supabase
+      .from('equipment')
+      .update(payload)
+      .eq('id', equipment.id);
+    setSaving(false);
+    if (updateErr) {
+      setSaveError(updateErr.message);
+      return;
+    }
+    const updated = { ...equipment, ...payload };
+    setEquipment(updated);
+    const newSlug = equipmentSlug(updated);
+    if (newSlug !== targetSlug) {
+      navigate(`/equipment/${newSlug}`, { replace: true });
+    } else {
+      setEditing(false);
+    }
+  };
+
   const handleLogEdit = (log: MaintenanceLog) => {
     navigate(`/maintenance/log/${log.id}`);
   };
@@ -234,28 +286,226 @@ function EquipmentDetail({ session }: Props) {
         <div className="card stack">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h1>{equipment.nickname ?? 'Equipment'}</h1>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {canManageEquipment && (
+            {!editing && (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {canManageEquipment && (
+                  <button type="button" onClick={() => setEditing(true)}>
+                    Edit Equipment
+                  </button>
+                )}
+                {maintenanceEnabled && (
+                  <Link className="nav-btn" to={`/maintenance/add?equipment_id=${equipment.id}`}>
+                    Log Maintenance
+                  </Link>
+                )}
+                <Link className="nav-btn" to="/equipment">
+                  Back to list
+                </Link>
+              </div>
+            )}
+          </div>
+          {editing && canManageEquipment ? (
+            <form className="stack" onSubmit={handleSave}>
+              <label className="stack">
+                <span>Nickname</span>
+                <input
+                  type="text"
+                  value={form.nickname ?? equipment.nickname ?? ''}
+                  onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                  required
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Category</span>
+                <input
+                  type="text"
+                  value={form.category ?? equipment.category ?? ''}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Make</span>
+                <input
+                  type="text"
+                  value={form.make ?? equipment.make ?? ''}
+                  onChange={(e) => setForm({ ...form, make: e.target.value })}
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Model</span>
+                <input
+                  type="text"
+                  value={form.model ?? equipment.model ?? ''}
+                  onChange={(e) => setForm({ ...form, model: e.target.value })}
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Unit #</span>
+                <input
+                  type="text"
+                  value={form.unit_number ?? equipment.unit_number ?? ''}
+                  onChange={(e) => setForm({ ...form, unit_number: e.target.value })}
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>VIN/SN</span>
+                <input
+                  type="text"
+                  value={form.vin_sn ?? equipment.vin_sn ?? ''}
+                  onChange={(e) => setForm({ ...form, vin_sn: e.target.value })}
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Year</span>
+                <input
+                  type="number"
+                  value={
+                    form.year !== undefined && form.year !== null
+                      ? form.year
+                      : equipment.year ?? ''
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      year: e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Year of purchase</span>
+                <input
+                  type="number"
+                  value={
+                    form.year_of_purchase !== undefined && form.year_of_purchase !== null
+                      ? form.year_of_purchase
+                      : equipment.year_of_purchase ?? ''
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      year_of_purchase:
+                        e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>License class</span>
+                <input
+                  type="text"
+                  value={form.license_class ?? equipment.license_class ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, license_class: e.target.value })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Next service</span>
+                <input
+                  type="date"
+                  value={
+                    (form.next_service_at as string) ??
+                    (equipment.next_service_at as string) ??
+                    ''
+                  }
+                  onChange={(e) =>
+                    setForm({ ...form, next_service_at: e.target.value || null })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>CVIP expires</span>
+                <input
+                  type="date"
+                  value={
+                    (form.cvip_expires_at as string) ??
+                    (equipment.cvip_expires_at as string) ??
+                    ''
+                  }
+                  onChange={(e) =>
+                    setForm({ ...form, cvip_expires_at: e.target.value || null })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Insurance expires</span>
+                <input
+                  type="date"
+                  value={
+                    (form.insurance_expires_at as string) ??
+                    (equipment.insurance_expires_at as string) ??
+                    ''
+                  }
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      insurance_expires_at: e.target.value || null,
+                    })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Oil filter #</span>
+                <input
+                  type="text"
+                  value={form.oil_filter_number ?? equipment.oil_filter_number ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, oil_filter_number: e.target.value })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Fuel filter #</span>
+                <input
+                  type="text"
+                  value={form.fuel_filter_number ?? equipment.fuel_filter_number ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, fuel_filter_number: e.target.value })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <label className="stack">
+                <span>Air filter #</span>
+                <input
+                  type="text"
+                  value={form.air_filter_number ?? equipment.air_filter_number ?? ''}
+                  onChange={(e) =>
+                    setForm({ ...form, air_filter_number: e.target.value })
+                  }
+                  disabled={saving}
+                />
+              </label>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button type="submit" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditing(true);
-                    setForm(equipment);
-                  }}
+                  className="secondary"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
                 >
-                  Edit Equipment
+                  Cancel
                 </button>
-              )}
-              {maintenanceEnabled && (
-                <Link className="nav-btn" to={`/maintenance/add?equipment_id=${equipment.id}`}>
-                  Log Maintenance
-                </Link>
-              )}
-              <Link className="nav-btn" to="/equipment">
-                Back to list
-              </Link>
-            </div>
-          </div>
+              </div>
+              {saveError && <p className="status error">{saveError}</p>}
+            </form>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
             <div><strong>Category:</strong> {equipment.category ?? '-'}</div>
             <div><strong>Make:</strong> {equipment.make ?? '-'}</div>
@@ -305,6 +555,7 @@ function EquipmentDetail({ session }: Props) {
               )}
             </div>
           </div>
+          )}
         </div>
 
         <div className="card stack">
@@ -345,230 +596,6 @@ function EquipmentDetail({ session }: Props) {
           )}
         </div>
       </div>
-      {editing && (
-        <div className="modal-backdrop" onClick={() => setEditing(false)}>
-          <div
-            className="modal"
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: 'min(520px, 100%)' }}
-          >
-            <ModalX onClose={() => setEditing(false)} />
-            <h2>Edit Equipment</h2>
-            <form
-              className="stack"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!equipment) return;
-                const payload = {
-                  nickname: form.nickname ?? equipment.nickname,
-                  category: form.category ?? equipment.category,
-                  make: form.make ?? equipment.make,
-                  model: form.model ?? equipment.model,
-                  unit_number: form.unit_number ?? equipment.unit_number,
-                  vin_sn: form.vin_sn ?? equipment.vin_sn,
-                  year: form.year ?? equipment.year,
-                  year_of_purchase: form.year_of_purchase ?? equipment.year_of_purchase,
-                  license_class: form.license_class ?? equipment.license_class,
-                  next_service_at: form.next_service_at ?? equipment.next_service_at,
-                  cvip_expires_at: form.cvip_expires_at ?? equipment.cvip_expires_at,
-                  insurance_expires_at: form.insurance_expires_at ?? equipment.insurance_expires_at,
-                  oil_filter_number: form.oil_filter_number ?? equipment.oil_filter_number,
-                  fuel_filter_number: form.fuel_filter_number ?? equipment.fuel_filter_number,
-                  air_filter_number: form.air_filter_number ?? equipment.air_filter_number,
-                };
-                const { error: updateErr } = await supabase
-                  .from('equipment')
-                  .update(payload)
-                  .eq('id', equipment.id);
-                if (!updateErr) {
-                  setEquipment({ ...equipment, ...payload });
-                  setEditing(false);
-                }
-              }}
-            >
-              <label className="stack">
-                <span>Nickname</span>
-                <input
-                  type="text"
-                  value={form.nickname ?? equipment.nickname ?? ''}
-                  onChange={(e) => setForm({ ...form, nickname: e.target.value })}
-                  required
-                />
-              </label>
-              <label className="stack">
-                <span>Category</span>
-                <input
-                  type="text"
-                  value={form.category ?? equipment.category ?? ''}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                />
-              </label>
-              <label className="stack">
-                <span>Make</span>
-                <input
-                  type="text"
-                  value={form.make ?? equipment.make ?? ''}
-                  onChange={(e) => setForm({ ...form, make: e.target.value })}
-                />
-              </label>
-              <label className="stack">
-                <span>Model</span>
-                <input
-                  type="text"
-                  value={form.model ?? equipment.model ?? ''}
-                  onChange={(e) => setForm({ ...form, model: e.target.value })}
-                />
-              </label>
-              <label className="stack">
-                <span>Unit #</span>
-                <input
-                  type="text"
-                  value={form.unit_number ?? equipment.unit_number ?? ''}
-                  onChange={(e) => setForm({ ...form, unit_number: e.target.value })}
-                />
-              </label>
-              <label className="stack">
-                <span>VIN/SN</span>
-                <input
-                  type="text"
-                  value={form.vin_sn ?? equipment.vin_sn ?? ''}
-                  onChange={(e) => setForm({ ...form, vin_sn: e.target.value })}
-                />
-              </label>
-              <label className="stack">
-                <span>Year</span>
-                <input
-                  type="number"
-                  value={
-                    form.year !== undefined && form.year !== null
-                      ? form.year
-                      : equipment.year ?? ''
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      year: e.target.value === '' ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Year of purchase</span>
-                <input
-                  type="number"
-                  value={
-                    form.year_of_purchase !== undefined && form.year_of_purchase !== null
-                      ? form.year_of_purchase
-                      : equipment.year_of_purchase ?? ''
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      year_of_purchase:
-                        e.target.value === '' ? null : Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>License class</span>
-                <input
-                  type="text"
-                  value={form.license_class ?? equipment.license_class ?? ''}
-                  onChange={(e) =>
-                    setForm({ ...form, license_class: e.target.value })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Next service</span>
-                <input
-                  type="date"
-                  value={
-                    (form.next_service_at as string) ??
-                    (equipment.next_service_at as string) ??
-                    ''
-                  }
-                  onChange={(e) =>
-                    setForm({ ...form, next_service_at: e.target.value || null })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>CVIP expires</span>
-                <input
-                  type="date"
-                  value={
-                    (form.cvip_expires_at as string) ??
-                    (equipment.cvip_expires_at as string) ??
-                    ''
-                  }
-                  onChange={(e) =>
-                    setForm({ ...form, cvip_expires_at: e.target.value || null })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Insurance expires</span>
-                <input
-                  type="date"
-                  value={
-                    (form.insurance_expires_at as string) ??
-                    (equipment.insurance_expires_at as string) ??
-                    ''
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      insurance_expires_at: e.target.value || null,
-                    })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Oil filter #</span>
-                <input
-                  type="text"
-                  value={form.oil_filter_number ?? equipment.oil_filter_number ?? ''}
-                  onChange={(e) =>
-                    setForm({ ...form, oil_filter_number: e.target.value })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Fuel filter #</span>
-                <input
-                  type="text"
-                  value={form.fuel_filter_number ?? equipment.fuel_filter_number ?? ''}
-                  onChange={(e) =>
-                    setForm({ ...form, fuel_filter_number: e.target.value })
-                  }
-                />
-              </label>
-              <label className="stack">
-                <span>Air filter #</span>
-                <input
-                  type="text"
-                  value={form.air_filter_number ?? equipment.air_filter_number ?? ''}
-                  onChange={(e) =>
-                    setForm({ ...form, air_filter_number: e.target.value })
-                  }
-                />
-              </label>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="submit">Save</button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => setEditing(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ModalX from './ModalX';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient';
 import { useNavData } from '../lib/navDataContext';
@@ -12,6 +12,29 @@ type Props = {
   gitSha: string;
   builtAt: string;
 };
+
+// What a bug report needs beyond the user-agent string: the UA can't tell a
+// phone in portrait from a tablet in landscape, or a PWA from a browser tab.
+function deviceInfo() {
+  const uaData = (navigator as Navigator & {
+    userAgentData?: { platform?: string; mobile?: boolean };
+  }).userAgentData;
+  return {
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    dpr: window.devicePixelRatio,
+    orientation:
+      window.screen.orientation?.type ??
+      (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'),
+    touch: navigator.maxTouchPoints > 0,
+    mobile: uaData?.mobile ?? null,
+    platform: uaData?.platform || navigator.platform || null,
+    standalone: window.matchMedia('(display-mode: standalone)').matches,
+    language: navigator.language,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    online: navigator.onLine,
+  };
+}
 
 function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props) {
   const [open, setOpen] = useState(false);
@@ -49,6 +72,7 @@ function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props
       page_title: document.title,
       app_version: `${appVersion}+${gitSha}`,
       user_agent: navigator.userAgent.slice(0, 500),
+      device_info: deviceInfo(),
     });
     if (err) {
       setError(err.message);
@@ -69,13 +93,9 @@ function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props
           Feedback / Report a bug
         </button>
       )}
-      <Link
-        className="version-badge"
-        to="/dev/rls"
-        title={`Build ${gitSha} · ${builtAt}`}
-      >
+      <span className="version-badge" title={`Build ${gitSha} · ${builtAt}`}>
         Farmkit v{appVersion} {versionLabel}
-      </Link>
+      </span>
 
       {open && (
         <div className="modal-backdrop" onClick={close} style={{ zIndex: 1400 }}>
@@ -85,7 +105,7 @@ function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props
               <div className="stack">
                 <h2>Thanks — got it.</h2>
                 <p style={{ color: 'var(--muted)' }}>
-                  Your report was sent to the Farmkit team (dev@farmkit.app) along
+                  Your report was sent to the Farmkit team (dev@farmkit.ca) along
                   with the page you were on.
                 </p>
                 <button type="button" onClick={close}>
@@ -119,8 +139,9 @@ function AppFooter({ session, appVersion, versionLabel, gitSha, builtAt }: Props
                   />
                 </label>
                 <p className="row-sub">
-                  We automatically include the page you're on ({pathname}) and the
-                  app version so the team can find the problem faster.
+                  We automatically include the page you're on ({pathname}), the
+                  app version and your device and screen size so the team can
+                  find the problem faster.
                 </p>
                 {error && <p className="status error">{error}</p>}
                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
