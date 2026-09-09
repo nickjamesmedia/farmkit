@@ -66,9 +66,6 @@ function EquipmentPage({ session }: EquipmentPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(
-    null,
-  );
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
@@ -209,19 +206,9 @@ function EquipmentPage({ session }: EquipmentPageProps) {
       license_class: licenseClass || null,
     };
 
-    let insertError;
-    if (editingEquipment) {
-      const { error } = await supabase
-        .from('equipment')
-        .update(payload)
-        .eq('id', editingEquipment.id);
-      insertError = error ?? null;
-    } else {
-      const { error } = await supabase
-        .from('equipment')
-        .insert({ ...payload, farm_id: activeFarmId });
-      insertError = error ?? null;
-    }
+    const { error: insertError } = await supabase
+      .from('equipment')
+      .insert({ ...payload, farm_id: activeFarmId });
 
     if (insertError) {
       setFormError(insertError.message);
@@ -231,7 +218,6 @@ function EquipmentPage({ session }: EquipmentPageProps) {
 
     setSaving(false);
     setShowForm(false);
-    setEditingEquipment(null);
     resetForm();
     refreshList();
     if (category && !categories.includes(category)) {
@@ -535,7 +521,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
               </label>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : editingEquipment ? 'Update' : 'Save'}
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
                 <button
                   type="button"
@@ -543,7 +529,6 @@ function EquipmentPage({ session }: EquipmentPageProps) {
                   onClick={() => {
                     setShowForm(false);
                     resetForm();
-                    setEditingEquipment(null);
                   }}
                   disabled={saving}
                 >
@@ -675,19 +660,7 @@ function EquipmentPage({ session }: EquipmentPageProps) {
               type="button"
               onClick={() => {
                 setShowDetails(false);
-                setEditingEquipment(selectedEquipment);
-                setCategory(selectedEquipment.category ?? '');
-                setNewCategoryMode(false);
-                setMake(selectedEquipment.make ?? '');
-                setModel(selectedEquipment.model ?? '');
-                setNickname(selectedEquipment.nickname ?? '');
-                setSerialNumber(selectedEquipment.serial_number ?? '');
-                setYear(selectedEquipment.year ?? '');
-                setUnitNumber(selectedEquipment.unit_number ?? '');
-                setVinSn(selectedEquipment.vin_sn ?? '');
-                setYearOfPurchase(selectedEquipment.year_of_purchase ?? '');
-                setLicenseClass(selectedEquipment.license_class ?? '');
-                setShowForm(true);
+                navigate(`/equipment/${equipmentSlug(selectedEquipment)}?edit=1`);
               }}
             >
               Edit equipment

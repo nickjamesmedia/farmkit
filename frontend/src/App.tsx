@@ -23,7 +23,6 @@ import AdminTools from './pages/AdminTools';
 import Team from './pages/Team';
 import Welcome from './pages/Welcome';
 import AdminActivity from './pages/AdminActivity';
-import RlsAudit from './pages/RlsAudit';
 import AppFooter from './components/AppFooter';
 
 const APP_VERSION = __APP_VERSION__;
@@ -248,16 +247,6 @@ function App() {
                 <RequireAuth session={session}>
                   <RequireRole allowed={['admin', 'manager']}>
                     <AdminActivity session={session as Session} />
-                  </RequireRole>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/dev/rls"
-              element={
-                <RequireAuth session={session}>
-                  <RequireRole allowed={['admin', 'manager']}>
-                    <RlsAudit session={session as Session} />
                   </RequireRole>
                 </RequireAuth>
               }

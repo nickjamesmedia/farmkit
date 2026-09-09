@@ -45,7 +45,6 @@ function Buildings({ session }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [quickview, setQuickview] = useState<Building | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<Building | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -70,7 +69,6 @@ function Buildings({ session }: Props) {
   const isAdmin = roleKey === 'admin';
 
   const resetForm = () => {
-    setEditing(null);
     setFormError(null);
     setFarmId(activeFarmId ?? '');
     setName('');
@@ -86,23 +84,6 @@ function Buildings({ session }: Props) {
 
   const openAdd = () => {
     resetForm();
-    setShowForm(true);
-  };
-
-  const openEdit = (b: Building) => {
-    const details = Array.isArray(b.building_details) ? b.building_details[0] : b.building_details;
-    setEditing(b);
-    setFormError(null);
-    setFarmId(b.farm_id);
-    setName(b.name ?? '');
-    setCode(b.code ?? '');
-    setDescription(b.description ?? '');
-    setNotes(b.notes ?? '');
-    setCapacity(details?.capacity ?? '');
-    setYearBuilt(details?.year_built ?? '');
-    setHeated(Boolean(details?.heated));
-    setHasWater(Boolean(details?.has_water));
-    setHasThreePhasePower(Boolean(details?.has_three_phase_power));
     setShowForm(true);
   };
 
@@ -179,23 +160,16 @@ function Buildings({ session }: Props) {
         updated_at: now,
       };
 
-      let containerId = editing?.id ?? '';
-      if (editing) {
-        const { error: updateErr } = await supabase.from('containers').update(containerPayload).eq('id', editing.id);
-        if (updateErr) throw updateErr;
-      } else {
-        const { data: inserted, error: insertErr } = await supabase
-          .from('containers')
-          .insert(containerPayload)
-          .select('id')
-          .maybeSingle();
-        if (insertErr) throw insertErr;
-        if (!inserted?.id) throw new Error('Unable to create building.');
-        containerId = inserted.id;
-      }
+      const { data: inserted, error: insertErr } = await supabase
+        .from('containers')
+        .insert(containerPayload)
+        .select('id')
+        .maybeSingle();
+      if (insertErr) throw insertErr;
+      if (!inserted?.id) throw new Error('Unable to create building.');
 
       const detailsPayload = {
-        container_id: containerId,
+        container_id: inserted.id,
         year_built: yearBuilt === '' ? null : Number(yearBuilt),
         heated,
         has_water: hasWater,
@@ -342,7 +316,7 @@ function Buildings({ session }: Props) {
                   type="button"
                   className="secondary"
                   onClick={() => {
-                    openEdit(quickview);
+                    navigate(`/buildings/${toSlug(quickview.name)}?edit=1`);
                     setQuickview(null);
                   }}
                 >
@@ -395,7 +369,7 @@ function Buildings({ session }: Props) {
             setShowForm(false);
             resetForm();
           }} />
-            <h2>{editing ? 'Edit Building' : 'Add Building'}</h2>
+            <h2>Add Building</h2>
             <form className="stack" onSubmit={handleSubmit}>
               {farms.length > 1 && (
                 <label className="stack">
@@ -470,7 +444,7 @@ function Buildings({ session }: Props) {
 
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : editing ? 'Update' : 'Save'}
+                  {saving ? 'Saving...' : 'Save'}
                 </button>
                 <button
                   type="button"
